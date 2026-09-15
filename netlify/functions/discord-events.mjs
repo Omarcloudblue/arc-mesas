@@ -1,8 +1,10 @@
-// Programada cada 5 min. Mantiene UN solo mensaje en Discord (lo edita) y avisa de la Matriacuda.
-// Guarda el id del mensaje en Netlify Blobs; si Blobs no está disponible, usa DISCORD_MESSAGE_ID o memoria.
+// Programada cada 5 min. Mantiene UN solo mensaje en Discord (lo edita), avisa de la Matriacuda
+// y registra los comandos /eventos, /matriacuda, /falta y /quien cuando hay token de bot.
 //
 // Variables de entorno (Netlify → Project configuration → Environment variables):
 //   DISCORD_WEBHOOK_URL  (obligatoria)  URL del webhook del canal
+//   DISCORD_BOT_TOKEN    (opcional)     token del bot, solo para registrar los comandos
+//   DISCORD_APP_ID       (opcional)     id de la aplicación (por defecto la de "Mesas ARC")
 //   EVENTS_REGION        (opcional)     north-america (por defecto) | europe | south-america | asia | oceania
 //   REMIND_EVENTS        (opcional)     lista separada por comas, por defecto "Matriarch"
 //   REMIND_MINUTES       (opcional)     minutos de anticipación del aviso, por defecto 30
@@ -10,25 +12,12 @@
 //   DISCORD_MESSAGE_ID   (opcional)     solo como respaldo si Blobs no funciona
 
 import { getStore } from "@netlify/blobs";
+import { fetchSchedule, eventsText, es, mp, ts, REGION_ES } from "./lib/events.mjs";
+import { COMMANDS, COMMANDS_VERSION, APP_ID_DEFAULT } from "./lib/commands.mjs";
 
 export const config = { schedule: "*/5 * * * *" };
 
-const SRC = "https://metaforge.app/api/arc-raiders/events-schedule";
-const ES = {
-  "Matriarch": "Matriacuda", "Harvester": "Cosechadora", "Night Raid": "Incursión nocturna",
-  "Electromagnetic Storm": "Tormenta electromagnética", "Cold Snap": "Ola de frío", "Hidden Bunker": "Búnker oculto",
-  "Locked Gate": "Puerta bloqueada", "Close Scrutiny": "Vigilancia estrecha", "Prospecting Probes": "Sondas de prospección",
-  "Lush Blooms": "Floración exuberante", "Uncovered Caches": "Alijos descubiertos", "Husk Graveyard": "Cementerio de cascarones",
-  "Launch Tower Loot": "Botín de la torre de lanzamiento", "Hurricane": "Huracán", "Bird City": "Ciudad de pájaros", "Beachcombing": "Rebusca en la playa",
-};
-const REGION_ES = { "europe": "Europa", "north-america": "Norteamérica", "south-america": "Sudamérica", "asia": "Asia", "oceania": "Oceanía" };
-const MAP_ES = { "Dam": "Campos de batalla de la presa", "Dam Battlegrounds": "Campos de batalla de la presa", "Spaceport": "Puerto espacial", "The Spaceport": "Puerto espacial", "Buried City": "Ciudad enterrada", "Blue Gate": "Puerta azul", "The Blue Gate": "Puerta azul", "Stella Montis": "Stella Montis", "Riven Tides": "Mareas divididas" };
-const es = (n) => ES[n] || n;
-const mp = (m) => MAP_ES[m] || m;
-const ts = (ms, f) => `<t:${Math.floor(ms / 1000)}:${f}>`;
-
-let memo = {}; // respaldo en memoria mientras la instancia siga viva
-
+let memo = {};
 async function loadState() {
   try { const v = await getStore("arc-bot").get("state", { type: "json" }); return { ok: true, state: v || {} }; }
   catch (e) { return { ok: false, state: { ...memo } }; }
@@ -36,6 +25,18 @@ async function loadState() {
 async function saveState(state) {
   memo = { ...state };
   try { await getStore("arc-bot").setJSON("state", state); return true; } catch (e) { return false; }
+}
+
+const post = (url, method, payload, headers = {}) =>
+  fetch(url, { method, headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(payload) });
+
+async function ensureCommands(state) {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token || state.commandsVersion === COMMANDS_VERSION) return "";
+  const appId = process.env.DISCORD_APP_ID || APP_ID_DEFAULT;
+  const r = await post(`https://discord.com/api/v10/applications/${appId}/commands`, "PUT", COMMANDS, { Authorization: `Bot ${token}` });
+  if (r.ok) { state.commandsVersion = COMMANDS_VERSION; await saveState(state); return " · comandos registrados"; }
+  return ` · comandos: error ${r.status}`;
 }
 
 export default async () => {
@@ -46,31 +47,15 @@ export default async () => {
   const remindList = (process.env.REMIND_EVENTS || "Matriarch").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   const remindMin = Number(process.env.REMIND_MINUTES || 30);
   const mention = (process.env.DISCORD_MENTION || "").trim();
-
-  const r = await fetch(`${SRC}?region=${region}`, {
-    headers: { accept: "application/json", "user-agent": "arc-mesas/1.0 (kyra-arc-mesas.netlify.app)" },
-  });
-  if (!r.ok) return new Response("upstream " + r.status);
-  const j = await r.json();
-  const now = Date.now();
-  const evs = (j.data || [])
-    .map((e) => ({ name: e.name, map: e.map, start: e.startTime, end: e.endTime }))
-    .sort((a, b) => a.start - b.start);
-
-  const active = evs.filter((e) => e.start <= now && e.end > now);
-  const upcoming = evs.filter((e) => e.start > now).slice(0, 10);
   const hot = (e) => remindList.includes(e.name.toLowerCase());
 
-  let content = `**Eventos ARC · ${REGION_ES[region] || region}** — actualizado ${ts(now, "R")}\n\n`;
-  content += `**Activos ahora**${active.length ? ` (hasta ${ts(active[0].end, "t")})` : ""}\n`;
-  content += active.length ? active.map((e) => `${hot(e) ? "🔥 " : "• "}**${es(e.name)}** — ${mp(e.map)}`).join("\n") : "• (ninguno)";
-  content += `\n\n**Próximos**\n`;
-  content += upcoming.length ? upcoming.map((e) => `${hot(e) ? "🔥 " : "• "}${ts(e.start, "t")} (${ts(e.start, "R")}) — **${es(e.name)}** · ${mp(e.map)}`).join("\n") : "• (sin datos)";
-  content += `\n\n-# Fuente: MetaForge · kyra-arc-mesas.netlify.app`;
-  if (content.length > 1950) content = content.slice(0, 1940) + "…";
+  let evs;
+  try { evs = await fetchSchedule(region); } catch (e) { return new Response(String(e.message || e)); }
+  const now = Date.now();
 
-  const post = (url, method, payload) =>
-    fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+  let content = eventsText(evs, region, hot, now, { maxGroups: 4 });
+  content += `\n\n-# Fuente: MetaForge · kyra-arc-mesas.netlify.app · comandos: /eventos /matriarcuda /falta /quien`;
+  if (content.length > 1950) content = content.slice(0, 1940) + "…";
 
   const { ok: blobsOk, state } = await loadState();
   let msgId = state.messageId || process.env.DISCORD_MESSAGE_ID || "";
@@ -84,8 +69,7 @@ export default async () => {
     const c = await post(`${hook}?wait=true`, "POST", { content, allowed_mentions: { parse: [] } });
     const m = await c.json().catch(() => null);
     if (m && m.id) {
-      msgId = m.id;
-      state.messageId = msgId;
+      msgId = m.id; state.messageId = msgId;
       const saved = await saveState(state);
       if (!saved && !process.env.DISCORD_MESSAGE_ID) {
         await post(`${hook}/messages/${msgId}`, "PATCH", {
@@ -111,5 +95,8 @@ export default async () => {
     await saveState(state);
   }
 
-  return new Response(`ok · blobs ${blobsOk ? "sí" : "no"} · msg ${msgId || "-"} · activos ${active.length} · avisos ${sent}`);
+  // 3) Comandos slash (una vez por versión)
+  const cmd = await ensureCommands(state);
+
+  return new Response(`ok · blobs ${blobsOk ? "sí" : "no"} · msg ${msgId || "-"} · activos ${evs.filter((e) => e.start <= now && e.end > now).length} · avisos ${sent}${cmd}`);
 };

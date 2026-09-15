@@ -174,6 +174,24 @@
   .chip-ev small{color:var(--dim);font-size:11px;margin-left:2px;white-space:nowrap}
   .chip-ev.hot{border-color:rgba(255,209,102,.7);color:var(--warn)}
   .evp-f{margin-top:12px;color:var(--dim);font-size:11px;display:flex;justify-content:space-between;gap:8px}
+  .sq-member{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .sq-member:first-child{border-top:0;padding-top:2px}
+  .sq-av{width:34px;height:34px;border-radius:50%;object-fit:cover;background:var(--row);border:1px solid var(--line)}
+  .sq-n{font-weight:600;font-size:14px;display:flex;align-items:baseline;gap:8px}
+  .sq-n em{font-style:normal;color:var(--dim);font-weight:400;font-size:12px}
+  .sq-n small{color:var(--dim);font-weight:400;font-size:11.5px;margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .sq-bar{height:5px;background:var(--row);border-radius:3px;overflow:hidden;margin-top:6px}
+  .sq-bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+  .sq-items{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  .sq-it{display:inline-flex;align-items:center;gap:5px;background:var(--row);border-radius:999px;padding:3px 9px 3px 4px;font-size:12px;line-height:1.2}
+  .sq-it img{width:18px;height:18px;object-fit:contain;flex:none}
+  .sq-it b{font-variant-numeric:tabular-nums}
+  .sq-it.hit{background:rgba(255,209,102,.18);color:var(--warn);box-shadow:inset 0 0 0 1px rgba(255,209,102,.5)}
+  .sq-empty{color:var(--dim);font-size:13px;padding:4px 0}
+  .sq-ask{width:100%;max-width:none;margin-bottom:10px;text-transform:none;letter-spacing:0;font-size:12.5px;font-family:inherit}
+  .sq-out{color:var(--warn);font-size:12.5px;margin:-4px 0 10px;line-height:1.35}
+  .sw{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);cursor:pointer;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
+  .sw input{accent-color:var(--ok);width:16px;height:16px;flex:none}
   .ev-empty{color:var(--dim);font-size:13px;padding:4px 0}
   .hide{display:none!important}
   .nores{color:var(--dim);padding:20px;text-align:center}
@@ -263,6 +281,10 @@
       <div id="need"></div>
       <label class="toggle"><input type="checkbox" id="showdone"> Mostrar también lo que ya tienes</label>
     </div>
+    <section class="evp hide" id="squad">
+      <div class="evp-h"><div class="ttl">Escuadrón</div><span class="ev-src" id="sqCount"></span></div>
+      <div id="sqBody"></div>
+    </section>
   </aside>
 </main>
 <footer>
@@ -346,7 +368,7 @@ const iconTile=m=>`<span class="icon-tile r-${RAR[m]||"common"}"><img src="${ico
 const cellKey=(si,li,m)=>`${si}-${li}-${m}`;
 const KEY_BASE="arc-mesas-v2";
 const SUPA_URL="https://kmwznwopkjsxorgyikec.supabase.co", SUPA_KEY="sb_publishable_AGUwrsh5ia9Qt_gIexwyWg_EiqBPqvG";
-let user=null;
+let user=null, shareOn=false, squadRows=[], squadReady=true, askMat="";
 const storageKey=()=>KEY_BASE+(user?":"+user.id:"");
 function loadLocal(){ try{ return JSON.parse(localStorage.getItem(storageKey())||"{}"); }catch(e){ return {}; } }
 let have=loadLocal();
@@ -489,13 +511,22 @@ const $auth=document.getElementById("auth");
 const sb=(window.supabase&&SUPA_URL&&SUPA_KEY&&location.protocol.startsWith("http"))?window.supabase.createClient(SUPA_URL,SUPA_KEY):null;
 let saveTimer=null;
 function setSync(s){ const el=document.getElementById("sync"); if(el) el.className="sync "+s; }
+function meMeta(){
+  const md=(user&&user.user_metadata)||{};
+  return { display_name:(md.custom_claims&&md.custom_claims.global_name)||md.full_name||md.name||md.preferred_username||"Raider",
+           discord_id:md.provider_id||md.sub||null, avatar_url:md.avatar_url||null };
+}
+// Guarda el progreso; si la base aún no tiene las columnas del escuadrón, guarda sin ellas.
+async function upsertProgress(){
+  const base={user_id:user.id,data:have,updated_at:new Date().toISOString()};
+  let {error}=squadReady?await sb.from("progress").upsert({...base,shared:shareOn,...meMeta()}):await sb.from("progress").upsert(base);
+  if(error&&squadReady){ squadReady=false; renderSquad(); ({error}=await sb.from("progress").upsert(base)); }
+  return error;
+}
 function pushRemote(){
   if(!sb||!user) return;
   clearTimeout(saveTimer); setSync("saving");
-  saveTimer=setTimeout(async()=>{
-    const {error}=await sb.from("progress").upsert({user_id:user.id,data:have,updated_at:new Date().toISOString()});
-    setSync(error?"error":"saved");
-  },600);
+  saveTimer=setTimeout(async()=>{ setSync(await upsertProgress()?"error":"saved"); },600);
 }
 function renderAuth(){
   if(!sb){ $auth.innerHTML=""; return; }
@@ -515,22 +546,79 @@ async function onSession(session){
   user=next;
   if(user){
     const mine=loadLocal();            // caché de esta cuenta en este navegador
-    const {data}=await sb.from("progress").select("data").eq("user_id",user.id).maybeSingle();
+    let {data}=await sb.from("progress").select("data,shared").eq("user_id",user.id).maybeSingle();
+    if(!data){ squadReady=false; ({data}=await sb.from("progress").select("data").eq("user_id",user.id).maybeSingle()); }
+    shareOn=!!(data&&data.shared);
     const remote=(data&&data.data)||{};
     // primera vez que entra: hereda lo que llevaba sin cuenta; después, manda lo guardado en la cuenta
     have=(Object.keys(remote).length||Object.keys(mine).length)?{...mine}:{...anon};
     Object.keys(remote).forEach(k=>{ have[k]=Math.max(have[k]||0,remote[k]||0); });
   } else {
-    have=loadLocal();
+    have=loadLocal(); shareOn=false;
   }
-  renderAuth(); save(); render();
+  renderAuth(); save(); render(); loadSquad();
 }
 if(sb){
   sb.auth.getSession().then(({data:{session}})=>onSession(session));
   sb.auth.onAuthStateChange((_e,session)=>onSession(session));
 }
+
+// ---- Escuadrón: quién comparte su progreso y qué le falta ----
+const $squad=document.getElementById("squad"), $sqBody=document.getElementById("sqBody");
+const MAT_SORTED=Object.keys(M).sort((a,b)=>nm(a).localeCompare(nm(b),"es"));
+function missingOf(d){
+  let doneLv=0,totLv=0,need=0,got=0; const rem={};
+  S.forEach(([,,lv],si)=>lv.forEach((l,li)=>{
+    let ok=true;
+    l.forEach(([m,q])=>{ const h=Math.min(q,(d||{})[cellKey(si,li,m)]||0); need+=q; got+=h; if(h<q){ ok=false; rem[m]=(rem[m]||0)+(q-h); } });
+    totLv++; if(ok) doneLv++;
+  }));
+  return {doneLv,totLv,need,got,items:Object.entries(rem).sort((a,b)=>b[1]-a[1])};
+}
+async function loadSquad(){
+  if(!sb||!squadReady) return renderSquad();
+  const {data,error}=await sb.from("progress").select("user_id,display_name,avatar_url,data,updated_at").eq("shared",true).order("updated_at",{ascending:false});
+  if(error){ squadReady=false; } else { squadRows=data||[]; }
+  renderSquad();
+}
+function renderSquad(){
+  if(!sb||(!squadReady&&!user)){ $squad.classList.add("hide"); return; }
+  if(!user&&!squadRows.length){ $squad.classList.add("hide"); return; }
+  $squad.classList.remove("hide");
+  const mine=user?squadRows.find(r=>r.user_id===user.id):null;
+  const list=(mine?[mine]:[]).concat(squadRows.filter(r=>!user||r.user_id!==user.id));
+  document.getElementById("sqCount").textContent=list.length?`${list.length} compartiendo`:"";
+  let h="";
+  if(!squadReady){
+    h=`<div class="sq-empty">El escuadrón aún no está activado en la base de datos.</div>`;
+  }else if(list.length){
+    if(list.length>1||askMat){
+      h+=`<select class="ev-select sq-ask" id="sqAsk"><option value="">¿Quién necesita…?</option>${MAT_SORTED.map(m=>`<option value="${m}"${m===askMat?" selected":""}>${nm(m)}</option>`).join("")}</select>`;
+      if(askMat){
+        const need=list.map(r=>[r.display_name||"Raider",(missingOf(r.data).items.find(([k])=>k===askMat)||[])[1]||0]).filter(([,n])=>n>0);
+        h+=`<div class="sq-out">${need.length?`${nm(askMat)}: `+need.map(([n,q])=>`${n} ×${q}`).join(" · "):`Nadie necesita ${nm(askMat)} 🎉`}</div>`;
+      }
+    }
+    h+=list.map(r=>{
+      const c=missingOf(r.data), pct=c.need?Math.round(100*c.got/c.need):0, me=user&&r.user_id===user.id;
+      const items=c.items.slice(0,8).map(([m,n])=>`<span class="sq-it${m===askMat?" hit":""}" title="${nm(m)}"><img src="${icon(m)}" alt="" loading="lazy">${nm(m)} <b>${n}</b></span>`).join("");
+      const more=c.items.length>8?`<span class="sq-it">+${c.items.length-8} más</span>`:"";
+      return `<div class="sq-member"><img class="sq-av" src="${r.avatar_url||""}" alt="" onerror="this.style.visibility='hidden'">
+        <div><div class="sq-n">${r.display_name||"Raider"}${me?" <em>(tú)</em>":""}<small>${c.doneLv}/${c.totLv} niveles</small></div><div class="sq-bar"><i style="width:${pct}%"></i></div></div>
+        <div class="sq-items">${items?items+more:`<span class="sq-empty">¡Todo completo! 🎉</span>`}</div></div>`;
+    }).join("");
+  }else{
+    h=`<div class="sq-empty">Nadie está compartiendo su progreso todavía. Activa el interruptor de abajo y aparecerás aquí para el resto.</div>`;
+  }
+  if(user&&squadReady) h+=`<label class="sw"><input type="checkbox" id="sqShare"${shareOn?" checked":""}> Compartir mi progreso con el escuadrón</label>`;
+  $sqBody.innerHTML=h;
+  const ask=document.getElementById("sqAsk"); if(ask) ask.onchange=()=>{ askMat=ask.value; renderSquad(); };
+  const sw=document.getElementById("sqShare");
+  if(sw) sw.onchange=async()=>{ shareOn=sw.checked; setSync("saving"); setSync(await upsertProgress()?"error":"saved"); loadSquad(); };
+}
+if(sb) setInterval(loadSquad,120000);
 // ---- Eventos del mapa (calendario de MetaForge vía función de Netlify) ----
-const EV_ES={"Matriarch":"Matriacuda","Harvester":"Cosechadora","Night Raid":"Incursión nocturna","Electromagnetic Storm":"Tormenta electromagnética","Cold Snap":"Ola de frío","Hidden Bunker":"Búnker oculto","Locked Gate":"Puerta bloqueada","Close Scrutiny":"Vigilancia estrecha","Prospecting Probes":"Sondas de prospección","Lush Blooms":"Floración exuberante","Uncovered Caches":"Alijos descubiertos","Husk Graveyard":"Cementerio de cascarones","Launch Tower Loot":"Botín de la torre de lanzamiento","Hurricane":"Huracán","Bird City":"Ciudad de pájaros","Beachcombing":"Rebusca en la playa"};
+const EV_ES={"Matriarch":"Matriarcuda","Harvester":"Cosechadora","Night Raid":"Incursión nocturna","Electromagnetic Storm":"Tormenta electromagnética","Cold Snap":"Ola de frío","Hidden Bunker":"Búnker oculto","Locked Gate":"Puerta bloqueada","Close Scrutiny":"Vigilancia estrecha","Prospecting Probes":"Sondas de prospección","Lush Blooms":"Floración exuberante","Uncovered Caches":"Alijos descubiertos","Husk Graveyard":"Cementerio de cascarones","Launch Tower Loot":"Botín de la torre de lanzamiento","Hurricane":"Huracán","Bird City":"Ciudad de pájaros","Beachcombing":"Rebusca en la playa"};
 const EV_REGION={"europe":"Europa","north-america":"Norteamérica","south-america":"Sudamérica","asia":"Asia","oceania":"Oceanía"};
 const MAP_ES={"Dam":"Campos de batalla de la presa","Dam Battlegrounds":"Campos de batalla de la presa","Spaceport":"Puerto espacial","The Spaceport":"Puerto espacial","Buried City":"Ciudad enterrada","Blue Gate":"Puerta azul","The Blue Gate":"Puerta azul","Stella Montis":"Stella Montis","Riven Tides":"Mareas divididas"};
 const mapName=m=>MAP_ES[m]||m;
