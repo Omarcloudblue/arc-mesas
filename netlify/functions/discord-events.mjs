@@ -11,7 +11,7 @@
 //   DISCORD_MENTION      (opcional)     p. ej. "@here" o "<@&ID_DEL_ROL>" para el aviso
 //   DISCORD_MESSAGE_ID   (opcional)     respaldo si la tabla bot_state no existe
 
-import { fetchSchedule, eventsText, es, mp, ts, REGION_ES } from "./lib/events.mjs";
+import { fetchSchedule, embedEvents, embedFocus, es, mp, ts, emo, REGION_ES, COLOR } from "./lib/events.mjs";
 import { loadState, saveState } from "./lib/state.mjs";
 import { COMMANDS, COMMANDS_VERSION, APP_ID_DEFAULT } from "./lib/commands.mjs";
 
@@ -43,9 +43,8 @@ export default async () => {
   try { evs = await fetchSchedule(region); } catch (e) { return new Response(String(e.message || e)); }
   const now = Date.now();
 
-  let content = eventsText(evs, region, hot, now, { maxGroups: 4 });
-  content += `\n\n-# Fuente: MetaForge · kyra-arc-mesas.netlify.app · comandos: /eventos /matriarcuda /falta /quien`;
-  if (content.length > 1950) content = content.slice(0, 1940) + "…";
+  const embed = embedEvents(evs, region, now, { groups: 4, footer: "Se actualiza solo cada 5 min · /eventos /matriarcuda /falta /quien" });
+  const payload = { content: "", embeds: [embed], allowed_mentions: { parse: [] } };
 
   const { ok: stateOk, state } = await loadState();
   let msgId = state.messageId || process.env.DISCORD_MESSAGE_ID || "";
@@ -53,7 +52,7 @@ export default async () => {
 
   // 1) Mensaje vivo: editar el que ya existe.
   if (msgId) {
-    const p = await post(`${hook}/messages/${msgId}`, "PATCH", { content, allowed_mentions: { parse: [] } });
+    const p = await post(`${hook}/messages/${msgId}`, "PATCH", payload);
     if (p.status === 404) msgId = "";
   }
   // Solo crear uno nuevo si podemos recordarlo (si no, evitamos llenar el canal).
@@ -61,7 +60,7 @@ export default async () => {
     if (!stateOk) {
       note = " · sin memoria: no creo mensaje (falta la tabla bot_state)";
     } else {
-      const c = await post(`${hook}?wait=true`, "POST", { content, allowed_mentions: { parse: [] } });
+      const c = await post(`${hook}?wait=true`, "POST", payload);
       const m = await c.json().catch(() => null);
       if (m && m.id) { msgId = m.id; state.messageId = msgId; await saveState(state); }
     }
@@ -75,7 +74,13 @@ export default async () => {
     const key = `${e.name}|${e.map}|${e.start}`;
     if (state.lastReminder === key) continue;
     await post(hook, "POST", {
-      content: `${mention} 🔥 ¡**${es(e.name)}**! abre en ${remindMin} min en **${mp(e.map)}** (${REGION_ES[region] || region}) · ${ts(e.start, "t")} (${ts(e.start, "R")})`.trim(),
+      content: mention,
+      embeds: [{
+        color: COLOR.hot,
+        title: `${emo(e.name)} ¡${es(e.name)} en ${remindMin} minutos!`,
+        description: `**${mp(e.map)}** · ${ts(e.start, "t")} (${ts(e.start, "R")})`,
+        footer: { text: `Servidor ${REGION_ES[region] || region} · preparen munición pesada` },
+      }],
       allowed_mentions: { parse: ["roles", "everyone"] },
     });
     state.lastReminder = key; sent++;

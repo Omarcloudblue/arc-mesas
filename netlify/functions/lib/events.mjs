@@ -1,5 +1,6 @@
-// Calendario de eventos (MetaForge) y textos compartidos por las funciones de Discord.
+// Calendario de eventos (MetaForge) y presentación de los mensajes de Discord.
 const SRC = "https://metaforge.app/api/arc-raiders/events-schedule";
+export const SITE = "https://kyra-arc-mesas.netlify.app";
 
 export const EV_ES = {
   "Matriarch": "Matriarcuda", "Harvester": "Cosechadora", "Night Raid": "Incursión nocturna",
@@ -8,6 +9,11 @@ export const EV_ES = {
   "Lush Blooms": "Floración exuberante", "Uncovered Caches": "Alijos descubiertos", "Husk Graveyard": "Cementerio de cascarones",
   "Launch Tower Loot": "Botín de la torre de lanzamiento", "Hurricane": "Huracán", "Bird City": "Ciudad de pájaros", "Beachcombing": "Rebusca en la playa",
 };
+export const EV_EMOJI = {
+  "Matriarch": "🔥", "Harvester": "🏭", "Night Raid": "🌙", "Electromagnetic Storm": "⚡", "Cold Snap": "❄️",
+  "Hidden Bunker": "🚪", "Locked Gate": "🔒", "Close Scrutiny": "👁️", "Prospecting Probes": "🛰️", "Lush Blooms": "🌿",
+  "Uncovered Caches": "📦", "Husk Graveyard": "💀", "Launch Tower Loot": "🚀", "Hurricane": "🌀", "Bird City": "🐦", "Beachcombing": "🏖️",
+};
 export const MAP_ES = {
   "Dam": "Campos de batalla de la presa", "Dam Battlegrounds": "Campos de batalla de la presa", "Spaceport": "Puerto espacial",
   "The Spaceport": "Puerto espacial", "Buried City": "Ciudad enterrada", "Blue Gate": "Puerta azul", "The Blue Gate": "Puerta azul",
@@ -15,8 +21,11 @@ export const MAP_ES = {
 };
 export const REGION_ES = { "europe": "Europa", "north-america": "Norteamérica", "south-america": "Sudamérica", "asia": "Asia", "oceania": "Oceanía" };
 export const REGIONS = Object.keys(REGION_ES);
+export const COLOR = { arc: 0x3A86FF, live: 0x7BD88F, hot: 0xFFB703, squad: 0xB18BFF };
+
 export const es = (n) => EV_ES[n] || n;
 export const mp = (m) => MAP_ES[m] || m;
+export const emo = (n) => EV_EMOJI[n] || "•";
 export const ts = (ms, f) => `<t:${Math.floor(ms / 1000)}:${f}>`;
 
 export async function fetchSchedule(region) {
@@ -26,7 +35,7 @@ export async function fetchSchedule(region) {
   if (!r.ok) throw new Error("upstream " + r.status);
   const j = await r.json();
   return (j.data || [])
-    .map((e) => ({ name: e.name, map: e.map, start: e.startTime, end: e.endTime }))
+    .map((e) => ({ name: e.name, map: e.map, icon: e.icon, start: e.startTime, end: e.endTime }))
     .sort((a, b) => a.start - b.start);
 }
 
@@ -44,30 +53,54 @@ export function groupByStart(upcoming, maxGroups = 3) {
   return groups;
 }
 
-// Texto del mensaje "vivo" y de /eventos
-export function eventsText(evs, region, hot, now = Date.now(), { maxGroups = 3, header = true } = {}) {
+const line = (e) => `${emo(e.name)} **${es(e.name)}** · ${mp(e.map)}`;
+const cut = (s, n = 1000) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+const hhmm = (ms) => `<t:${Math.floor(ms / 1000)}:t>`;
+
+// Tarjeta principal: activos ahora + próximas tandas.
+export function embedEvents(evs, region, now = Date.now(), { groups = 3, footer = "" } = {}) {
   const { active, upcoming } = splitNow(evs, now);
-  const mark = (e) => (hot(e) ? "🔥 " : "• ");
-  let c = header ? `**Eventos ARC · ${REGION_ES[region] || region}** — actualizado ${ts(now, "R")}\n\n` : "";
-  c += `**Activos ahora**${active.length ? ` (hasta ${ts(active[0].end, "t")})` : ""}\n`;
-  c += active.length ? active.map((e) => `${mark(e)}**${es(e.name)}** — ${mp(e.map)}`).join("\n") : "• (ninguno)";
-  for (const g of groupByStart(upcoming, maxGroups)) {
-    c += `\n\n**${ts(g.start, "t")}** (${ts(g.start, "R")})\n`;
-    c += g.items.map((e) => `${mark(e)}**${es(e.name)}** — ${mp(e.map)}`).join("\n");
+  const fields = [];
+  fields.push({
+    name: active.length ? `🟢 Activos ahora · terminan ${ts(active[0].end, "R")}` : "🟢 Activos ahora",
+    value: cut(active.length ? active.map(line).join("\n") : "_ninguno_"),
+  });
+  for (const g of groupByStart(upcoming, groups)) {
+    fields.push({ name: `🕑 ${hhmm(g.start)} · ${ts(g.start, "R")}`, value: cut(g.items.map(line).join("\n")) });
   }
-  return c;
+  return {
+    color: COLOR.arc,
+    author: { name: `Eventos ARC · ${REGION_ES[region] || region}`, url: SITE },
+    fields,
+    footer: { text: footer || "Datos de MetaForge · Mesas del Taller de Kyra" },
+    timestamp: new Date(now).toISOString(),
+  };
 }
 
-export function matriText(evs, region, now = Date.now()) {
-  const isM = (e) => e.name.toLowerCase() === "matriarch";
+// Tarjeta dedicada a la Matriarcuda (o al evento que se pida).
+export function embedFocus(evs, region, target = "Matriarch", now = Date.now()) {
+  const is = (e) => e.name.toLowerCase() === target.toLowerCase();
   const { active, upcoming } = splitNow(evs, now);
-  const live = active.filter(isM), next = upcoming.filter(isM);
-  let c = `🔥 **${es("Matriarch")}** · ${REGION_ES[region] || region}\n`;
-  if (live.length) c += live.map((e) => `**En curso** en **${mp(e.map)}** — termina ${ts(e.end, "t")} (${ts(e.end, "R")})`).join("\n") + "\n";
+  const live = active.filter(is), next = upcoming.filter(is);
+  const fields = [];
+  if (live.length) {
+    fields.push({ name: "🟢 En curso", value: live.map((e) => `**${mp(e.map)}** · termina ${hhmm(e.end)} (${ts(e.end, "R")})`).join("\n") });
+  }
   if (next.length) {
-    const n = next[0];
-    c += `**Próxima:** ${mp(n.map)} — ${ts(n.start, "t")} (${ts(n.start, "R")})`;
-    if (next.length > 1) c += `\nLuego: ` + next.slice(1, 4).map((e) => `${mp(e.map)} ${ts(e.start, "t")}`).join(" · ");
-  } else if (!live.length) c += "Sin Matriacuda en el calendario por ahora.";
-  return c;
+    fields.push({ name: "⏭️ Próxima", value: `**${mp(next[0].map)}** · ${hhmm(next[0].start)} (${ts(next[0].start, "R")})` });
+    if (next.length > 1) {
+      fields.push({ name: "📅 Después", value: cut(next.slice(1, 4).map((e) => `${hhmm(e.start)} · ${mp(e.map)}`).join("\n")) });
+    }
+  }
+  if (!fields.length) fields.push({ name: "Sin datos", value: `No aparece **${es(target)}** en el calendario ahora mismo.` });
+  const icon = (live[0] || next[0] || {}).icon;
+  return {
+    color: live.length ? COLOR.live : COLOR.hot,
+    title: `${emo(target)} ${es(target)}`,
+    description: `Servidor **${REGION_ES[region] || region}**`,
+    thumbnail: icon ? { url: icon } : undefined,
+    fields,
+    footer: { text: "Datos de MetaForge · horas en tu zona" },
+    timestamp: new Date(now).toISOString(),
+  };
 }
