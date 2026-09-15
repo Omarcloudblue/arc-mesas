@@ -22,7 +22,7 @@ const ES = {
   "Launch Tower Loot": "Botín de la torre de lanzamiento", "Hurricane": "Huracán", "Bird City": "Ciudad de pájaros", "Beachcombing": "Rebusca en la playa",
 };
 const REGION_ES = { "europe": "Europa", "north-america": "Norteamérica", "south-america": "Sudamérica", "asia": "Asia", "oceania": "Oceanía" };
-const MAP_ES = { "Dam": "La Presa", "Dam Battlegrounds": "La Presa", "Spaceport": "Puerto espacial", "The Spaceport": "Puerto espacial", "Buried City": "Ciudad enterrada", "Blue Gate": "Puerta azul", "The Blue Gate": "Puerta azul", "Stella Montis": "Stella Montis", "Riven Tides": "Mareas divididas" };
+const MAP_ES = { "Dam": "Campos de batalla de la presa", "Dam Battlegrounds": "Campos de batalla de la presa", "Spaceport": "Puerto espacial", "The Spaceport": "Puerto espacial", "Buried City": "Ciudad enterrada", "Blue Gate": "Puerta azul", "The Blue Gate": "Puerta azul", "Stella Montis": "Stella Montis", "Riven Tides": "Mareas divididas" };
 const es = (n) => ES[n] || n;
 const mp = (m) => MAP_ES[m] || m;
 const ts = (ms, f) => `<t:${Math.floor(ms / 1000)}:${f}>`;
