@@ -1,5 +1,5 @@
-// Programada cada 5 min. Mantiene UN solo mensaje en Discord (lo edita), avisa de la Matriacuda
-// y registra los comandos /eventos, /matriacuda, /falta y /quien cuando hay token de bot.
+// Programada cada 5 min. Mantiene UN solo mensaje en Discord (lo edita), avisa de la Matriarcuda
+// y registra los comandos slash cuando hay token de bot.
 //
 // Variables de entorno (Netlify → Project configuration → Environment variables):
 //   DISCORD_WEBHOOK_URL  (obligatoria)  URL del webhook del canal
@@ -9,23 +9,13 @@
 //   REMIND_EVENTS        (opcional)     lista separada por comas, por defecto "Matriarch"
 //   REMIND_MINUTES       (opcional)     minutos de anticipación del aviso, por defecto 30
 //   DISCORD_MENTION      (opcional)     p. ej. "@here" o "<@&ID_DEL_ROL>" para el aviso
-//   DISCORD_MESSAGE_ID   (opcional)     solo como respaldo si Blobs no funciona
+//   DISCORD_MESSAGE_ID   (opcional)     respaldo si la tabla bot_state no existe
 
-import { getStore } from "@netlify/blobs";
 import { fetchSchedule, eventsText, es, mp, ts, REGION_ES } from "./lib/events.mjs";
+import { loadState, saveState } from "./lib/state.mjs";
 import { COMMANDS, COMMANDS_VERSION, APP_ID_DEFAULT } from "./lib/commands.mjs";
 
 export const config = { schedule: "*/5 * * * *" };
-
-let memo = {};
-async function loadState() {
-  try { const v = await getStore("arc-bot").get("state", { type: "json" }); return { ok: true, state: v || {} }; }
-  catch (e) { return { ok: false, state: { ...memo } }; }
-}
-async function saveState(state) {
-  memo = { ...state };
-  try { await getStore("arc-bot").setJSON("state", state); return true; } catch (e) { return false; }
-}
 
 const post = (url, method, payload, headers = {}) =>
   fetch(url, { method, headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(payload) });
@@ -57,26 +47,23 @@ export default async () => {
   content += `\n\n-# Fuente: MetaForge · kyra-arc-mesas.netlify.app · comandos: /eventos /matriarcuda /falta /quien`;
   if (content.length > 1950) content = content.slice(0, 1940) + "…";
 
-  const { ok: blobsOk, state } = await loadState();
+  const { ok: stateOk, state } = await loadState();
   let msgId = state.messageId || process.env.DISCORD_MESSAGE_ID || "";
+  let note = "";
 
-  // 1) Mensaje vivo: editar si existe; crear solo si no hay ninguno
+  // 1) Mensaje vivo: editar el que ya existe.
   if (msgId) {
     const p = await post(`${hook}/messages/${msgId}`, "PATCH", { content, allowed_mentions: { parse: [] } });
     if (p.status === 404) msgId = "";
   }
+  // Solo crear uno nuevo si podemos recordarlo (si no, evitamos llenar el canal).
   if (!msgId) {
-    const c = await post(`${hook}?wait=true`, "POST", { content, allowed_mentions: { parse: [] } });
-    const m = await c.json().catch(() => null);
-    if (m && m.id) {
-      msgId = m.id; state.messageId = msgId;
-      const saved = await saveState(state);
-      if (!saved && !process.env.DISCORD_MESSAGE_ID) {
-        await post(`${hook}/messages/${msgId}`, "PATCH", {
-          content: content + `\n\n-# ⚙️ Guarda en Netlify la variable DISCORD_MESSAGE_ID = ${msgId} para que este mensaje se actualice solo.`,
-          allowed_mentions: { parse: [] },
-        });
-      }
+    if (!stateOk) {
+      note = " · sin memoria: no creo mensaje (falta la tabla bot_state)";
+    } else {
+      const c = await post(`${hook}?wait=true`, "POST", { content, allowed_mentions: { parse: [] } });
+      const m = await c.json().catch(() => null);
+      if (m && m.id) { msgId = m.id; state.messageId = msgId; await saveState(state); }
     }
   }
 
@@ -95,8 +82,7 @@ export default async () => {
     await saveState(state);
   }
 
-  // 3) Comandos slash (una vez por versión)
   const cmd = await ensureCommands(state);
-
-  return new Response(`ok · blobs ${blobsOk ? "sí" : "no"} · msg ${msgId || "-"} · activos ${evs.filter((e) => e.start <= now && e.end > now).length} · avisos ${sent}${cmd}`);
+  const active = evs.filter((e) => e.start <= now && e.end > now).length;
+  return new Response(`ok · estado ${stateOk ? "sí" : "no"} · msg ${msgId || "-"} · activos ${active} · avisos ${sent}${cmd}${note}`);
 };
