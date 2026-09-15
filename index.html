@@ -532,6 +532,8 @@ if(sb){
 // ---- Eventos del mapa (calendario de MetaForge vía función de Netlify) ----
 const EV_ES={"Matriarch":"Matriacuda","Harvester":"Cosechadora","Night Raid":"Incursión nocturna","Electromagnetic Storm":"Tormenta electromagnética","Cold Snap":"Ola de frío","Hidden Bunker":"Búnker oculto","Locked Gate":"Puerta bloqueada","Close Scrutiny":"Vigilancia estrecha","Prospecting Probes":"Sondas de prospección","Lush Blooms":"Floración exuberante","Uncovered Caches":"Alijos descubiertos","Husk Graveyard":"Cementerio de cascarones","Launch Tower Loot":"Botín de la torre de lanzamiento","Hurricane":"Huracán","Bird City":"Ciudad de pájaros","Beachcombing":"Rebusca en la playa"};
 const EV_REGION={"europe":"Europa","north-america":"Norteamérica","south-america":"Sudamérica","asia":"Asia","oceania":"Oceanía"};
+const MAP_ES={"Dam":"La Presa","Dam Battlegrounds":"La Presa","Spaceport":"Puerto espacial","The Spaceport":"Puerto espacial","Buried City":"Ciudad enterrada","Blue Gate":"Puerta azul","The Blue Gate":"Puerta azul","Stella Montis":"Stella Montis","Riven Tides":"Mareas divididas"};
+const mapName=m=>MAP_ES[m]||m;
 const EV_HOT=new Set(["matriarch"]);
 const evOn=location.protocol.startsWith("http");
 let evData=null, evRegion=localStorage.getItem("arc-events-region")||"north-america";
@@ -546,10 +548,10 @@ async function loadEvents(){
   catch(e){ if(!evData) evData={events:[],error:true}; }
   renderEvents();
 }
-const chipEv=e=>`<span class="chip-ev${isHot(e)?" hot":""}" title="${e.name} · ${e.map}"><img src="${e.icon||""}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${evName(e.name)}<small>· ${e.map}</small></span>`;
+const chipEv=e=>`<span class="chip-ev${isHot(e)?" hot":""}" title="${e.name} · ${e.map}"><img src="${e.icon||""}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">${evName(e.name)}<small>· ${mapName(e.map)}</small></span>`;
 function hero(e,live,now){
   const until=live?e.end:e.start;
-  return `<div class="hero${live?" live":""}"><img src="${e.icon||""}" alt="" onerror="this.style.visibility='hidden'"><div><div class="k">${live?"¡Está aquí!":"¡Se viene!"}</div><div class="n">${evName(e.name)}</div><div class="m">${e.map} · ${live?"termina a las":"abre a las"} ${fmtT(until)}</div></div><div class="cd"><span data-until="${until}" data-clock="1">${fmtCD(until-now,true)}</span><small>${live?"para que termine":"para que abra"}</small></div></div>`;
+  return `<div class="hero${live?" live":""}"><img src="${e.icon||""}" alt="" onerror="this.style.visibility='hidden'"><div><div class="k">${live?"¡Está aquí!":"¡Se viene!"}</div><div class="n">${evName(e.name)}</div><div class="m">${mapName(e.map)} · ${live?"termina a las":"abre a las"} ${fmtT(until)}</div></div><div class="cd"><span data-until="${until}" data-clock="1">${fmtCD(until-now,true)}</span><small>${live?"para que termine":"para que abra"}</small></div></div>`;
 }
 function renderEvents(){
   if(!evOn) return;
@@ -577,8 +579,8 @@ function shareEvents(){
   const now=Date.now(), evs=(evData&&evData.events)||[];
   const active=evs.filter(e=>e.start<=now&&e.end>now), next=evs.filter(e=>e.start>now).slice(0,6);
   const lines=[`*Eventos ARC · ${EV_REGION[evRegion]}*`,"","*Activos ahora:*",
-    ...(active.length?active.map(e=>`• ${evName(e.name)} — ${e.map} (hasta ${fmtT(e.end)})`):["• ninguno"]),
-    "","*Próximos:*",...next.map(e=>`• ${fmtT(e.start)} — ${evName(e.name)} · ${e.map}`),
+    ...(active.length?active.map(e=>`• ${evName(e.name)} — ${mapName(e.map)} (hasta ${fmtT(e.end)})`):["• ninguno"]),
+    "","*Próximos:*",...next.map(e=>`• ${fmtT(e.start)} — ${evName(e.name)} · ${mapName(e.map)}`),
     "","Horas en mi zona · https://kyra-arc-mesas.netlify.app"];
   window.open("https://wa.me/?text="+encodeURIComponent(lines.join("\n")),"_blank","noopener");
 }

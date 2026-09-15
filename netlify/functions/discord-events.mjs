@@ -22,7 +22,9 @@ const ES = {
   "Launch Tower Loot": "Botín de la torre de lanzamiento", "Hurricane": "Huracán", "Bird City": "Ciudad de pájaros", "Beachcombing": "Rebusca en la playa",
 };
 const REGION_ES = { "europe": "Europa", "north-america": "Norteamérica", "south-america": "Sudamérica", "asia": "Asia", "oceania": "Oceanía" };
+const MAP_ES = { "Dam": "La Presa", "Dam Battlegrounds": "La Presa", "Spaceport": "Puerto espacial", "The Spaceport": "Puerto espacial", "Buried City": "Ciudad enterrada", "Blue Gate": "Puerta azul", "The Blue Gate": "Puerta azul", "Stella Montis": "Stella Montis", "Riven Tides": "Mareas divididas" };
 const es = (n) => ES[n] || n;
+const mp = (m) => MAP_ES[m] || m;
 const ts = (ms, f) => `<t:${Math.floor(ms / 1000)}:${f}>`;
 
 let memo = {}; // respaldo en memoria mientras la instancia siga viva
@@ -61,9 +63,9 @@ export default async () => {
 
   let content = `**Eventos ARC · ${REGION_ES[region] || region}** — actualizado ${ts(now, "R")}\n\n`;
   content += `**Activos ahora**${active.length ? ` (hasta ${ts(active[0].end, "t")})` : ""}\n`;
-  content += active.length ? active.map((e) => `${hot(e) ? "🔥 " : "• "}**${es(e.name)}** — ${e.map}`).join("\n") : "• (ninguno)";
+  content += active.length ? active.map((e) => `${hot(e) ? "🔥 " : "• "}**${es(e.name)}** — ${mp(e.map)}`).join("\n") : "• (ninguno)";
   content += `\n\n**Próximos**\n`;
-  content += upcoming.length ? upcoming.map((e) => `${hot(e) ? "🔥 " : "• "}${ts(e.start, "t")} (${ts(e.start, "R")}) — **${es(e.name)}** · ${e.map}`).join("\n") : "• (sin datos)";
+  content += upcoming.length ? upcoming.map((e) => `${hot(e) ? "🔥 " : "• "}${ts(e.start, "t")} (${ts(e.start, "R")}) — **${es(e.name)}** · ${mp(e.map)}`).join("\n") : "• (sin datos)";
   content += `\n\n-# Fuente: MetaForge · kyra-arc-mesas.netlify.app`;
   if (content.length > 1950) content = content.slice(0, 1940) + "…";
 
@@ -102,7 +104,7 @@ export default async () => {
     const key = `${e.name}|${e.map}|${e.start}`;
     if (state.lastReminder === key) continue;
     await post(hook, "POST", {
-      content: `${mention} 🔥 ¡**${es(e.name)}**! abre en ${remindMin} min en **${e.map}** (${REGION_ES[region] || region}) · ${ts(e.start, "t")} (${ts(e.start, "R")})`.trim(),
+      content: `${mention} 🔥 ¡**${es(e.name)}**! abre en ${remindMin} min en **${mp(e.map)}** (${REGION_ES[region] || region}) · ${ts(e.start, "t")} (${ts(e.start, "R")})`.trim(),
       allowed_mentions: { parse: ["roles", "everyone"] },
     });
     state.lastReminder = key; sent++;
