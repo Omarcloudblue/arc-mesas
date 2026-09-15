@@ -1,0 +1,8 @@
+{
+  "name": "arc-mesas",
+  "private": true,
+  "description": "Mesas del Taller · ARC Raiders · por Kyra",
+  "dependencies": {
+    "@netlify/blobs": "^8"
+  }
+}
