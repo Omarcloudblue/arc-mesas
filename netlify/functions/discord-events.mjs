@@ -15,7 +15,8 @@ import { fetchSchedule, embedEvents, embedFocus, es, mp, ts, emo, REGION_ES, COL
 import { loadState, saveState } from "./lib/state.mjs";
 import { COMMANDS, COMMANDS_VERSION, APP_ID_DEFAULT } from "./lib/commands.mjs";
 
-export const config = { schedule: "*/5 * * * *" };
+// Corre cada minuto para que los avisos lleguen puntuales; el mensaje fijo se edita cada 5.
+export const config = { schedule: "* * * * *" };
 
 const post = (url, method, payload, headers = {}) =>
   fetch(url, { method, headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(payload) });
@@ -54,8 +55,8 @@ export default async () => {
   let msgId = state.messageId || process.env.DISCORD_MESSAGE_ID || "";
   let note = "";
 
-  // 1) Mensaje vivo: editar el que ya existe.
-  if (msgId) {
+  // 1) Mensaje vivo: editar el que ya existe (cada 5 minutos, no en cada corrida).
+  if (msgId && new Date(now).getMinutes() % 5 === 0) {
     const p = await post(`${hook}/messages/${msgId}`, "PATCH", payload);
     if (p.status === 404) msgId = "";
   }
@@ -70,24 +71,35 @@ export default async () => {
     }
   }
 
-  // 2) Avisos: ventana de 5 min + registro del último aviso para no repetir
-  const lo = (remindMin - 5) * 60000, hi = remindMin * 60000;
-  const soon = evs.filter((e) => alertable(e) && e.start - now > lo && e.start - now <= hi);
+  // 2) Aviso anticipado (ventana de 1 min) y aviso de apertura, sin repetir
+  const alerta = (e, embed) => post(hook, "POST", { content: mention, embeds: [embed], allowed_mentions: { parse: ["roles", "everyone"] } });
   let sent = 0;
+
+  const soon = evs.filter((e) => alertable(e) && e.start - now > (remindMin - 1) * 60000 && e.start - now <= remindMin * 60000);
   for (const e of soon) {
     const key = `${e.name}|${e.map}|${e.start}`;
     if (state.lastReminder === key) continue;
-    await post(hook, "POST", {
-      content: mention,
-      embeds: [{
-        color: COLOR.hot,
-        title: `${emo(e.name)} ¡${es(e.name)} en ${remindMin} minutos!`,
-        description: `**${mp(e.map)}** · ${ts(e.start, "t")} (${ts(e.start, "R")})`,
-        footer: { text: `Servidor ${REGION_ES[region] || region} · preparen munición pesada y explosivos` },
-      }],
-      allowed_mentions: { parse: ["roles", "everyone"] },
+    await alerta(e, {
+      color: COLOR.hot,
+      title: `${emo(e.name)} ¡${es(e.name)} en ${remindMin} minutos!`,
+      description: `**${mp(e.map)}** · ${ts(e.start, "t")} (${ts(e.start, "R")})`,
+      footer: { text: `Servidor ${REGION_ES[region] || region} · preparen munición pesada y explosivos` },
     });
     state.lastReminder = key; sent++;
+    await saveState(state);
+  }
+
+  const abriendo = evs.filter((e) => alertable(e) && e.start <= now && e.start > now - 60000 && e.end > now);
+  for (const e of abriendo) {
+    const key = `start|${e.name}|${e.map}|${e.start}`;
+    if (state.lastStart === key) continue;
+    await alerta(e, {
+      color: COLOR.live,
+      title: `${emo(e.name)} ¡Es la hora! ${es(e.name)} ya está abierta`,
+      description: `**${mp(e.map)}** · hasta ${ts(e.end, "t")} (${ts(e.end, "R")})`,
+      footer: { text: `Servidor ${REGION_ES[region] || region} · ¡vamos!` },
+    });
+    state.lastStart = key; sent++;
     await saveState(state);
   }
 
