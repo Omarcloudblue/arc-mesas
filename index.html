@@ -190,6 +190,20 @@
   .sq-empty{color:var(--dim);font-size:13px;padding:4px 0}
   .sq-ask{width:100%;max-width:none;margin-bottom:10px;text-transform:none;letter-spacing:0;font-size:12.5px;font-family:inherit}
   .sq-out{color:var(--warn);font-size:12.5px;margin:-4px 0 10px;line-height:1.35}
+  .bp-tools{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 12px}
+  .bp-tools input{flex:1 1 220px;background:var(--row);border:1px solid var(--line);color:var(--txt);font:inherit;font-size:14px;padding:8px 14px;border-radius:999px;outline:none}
+  .bp-tools input:focus{border-color:var(--dim)}
+  .bp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+  .bp{position:relative;border-radius:10px;background:var(--row);border:1px solid var(--line);padding:9px 6px 7px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;text-align:center;transition:transform .15s ease,border-color .15s ease,background .15s ease}
+  .bp:hover{transform:translateY(-2px);border-color:var(--dim)}
+  .bp img{width:42px;height:42px;object-fit:contain;filter:grayscale(1);opacity:.45;transition:filter .15s,opacity .15s}
+  .bp .bn{font-size:10.5px;line-height:1.2;color:var(--dim);min-height:2.4em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .bp.on{background:linear-gradient(140deg,rgba(123,216,143,.2),var(--row) 70%);border-color:rgba(123,216,143,.55)}
+  .bp.on img{filter:none;opacity:1}
+  .bp.on .bn{color:var(--txt)}
+  .bp .tick{position:absolute;top:5px;right:5px;width:17px;height:17px;border-radius:50%;background:var(--ok);color:var(--ink);font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center}
+  .bp.on .tick{display:flex}
+  .bp-empty{color:var(--dim);font-size:13px;padding:10px 0}
   .sw{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);cursor:pointer;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
   .sw input{accent-color:var(--ok);width:16px;height:16px;flex:none}
   .ev-empty{color:var(--dim);font-size:13px;padding:4px 0}
@@ -257,7 +271,25 @@
   </div>
 </div>
 <main>
-  <div class="col-st"><section id="stations"></section><div class="nores hide" id="nores">Nada coincide con ese filtro.</div></div>
+  <div class="col-st">
+    <section id="stations"></section><div class="nores hide" id="nores">Nada coincide con ese filtro.</div>
+    <section class="station" id="planos">
+      <div class="st-head" id="bpHead">
+        <img class="st-art" src="icons/bp/anvil.webp" alt="">
+        <div><div class="st-name">Planos</div><div class="st-sub">Marca los que ya tienes desbloqueados</div></div>
+        <span class="tier" id="bpCount">0/83</span>
+        <span class="chev">▶</span>
+      </div>
+      <div class="levels">
+        <div class="bp-tools">
+          <input type="search" id="bpQ" placeholder="Buscar plano (ej. silencer, mine, vita)…" aria-label="Buscar plano">
+          <button class="chip" id="bpMissing">Solo los que faltan</button>
+        </div>
+        <div class="bp-grid" id="bpGrid"></div>
+        <div class="bp-empty hide" id="bpNone">Ningún plano coincide con esa búsqueda.</div>
+      </div>
+    </section>
+  </div>
   <aside class="col-right">
     <section class="evp hide" id="events">
       <div class="evp-h">
@@ -366,13 +398,19 @@ const RAR={
 };
 const iconTile=m=>`<span class="icon-tile r-${RAR[m]||"common"}"><img src="${icon(m)}" alt="" loading="lazy"></span>`;
 const cellKey=(si,li,m)=>`${si}-${li}-${m}`;
+// Planos: [slug, nombre]. Iconos en icons/bp/<slug>.webp
+const BP=[["angled-grip-ii","Angled Grip II"],["angled-grip-iii-recipe","Angled Grip III"],["anvil","Anvil"],["aphelion-rifle-blueprint","Aphelion Rifle"],["barricade-kit","Barricade Kit"],["bettina-blueprint","Bettina"],["blaze-grenade","Blaze Grenade"],["blue-light-stick","Blue Light Stick"],["bobcat-i-recipe","Bobcat"],["burltetta-recipe","Burletta"],["canto-blueprint","Canto"],["combat-mk-3-flanking","Combat Mk.3 (Flanking)"],["combat-mk3-aggressive-blueprint","Combat Mk.3 (Aggressive)"],["compensator-ii","Compensator II"],["compensator-iii","Compensator III"],["complex-gun-parts","Complex Gun Parts"],["crash-mat-blueprint","Crash Mat"],["deadline","Deadline"],["defibrillator","Defibrillator"],["dolabra-blueprint","Dolabra"],["equalizer","Equalizer"],["explosive-mine-blueprint","Explosive Mine"],["extended-barrel-ii-blueprint","Extended Barrel II"],["extended-barrel-recipe","Extended Barrel III"],["extended-light-mag-ii","Extended Light Mag II"],["extended-light-mag-iii","Extended Light Mag III"],["extended-medium-mag-ii","Extended Medium Mag II"],["extended-medium-mag-iii","Extended Medium Mag III"],["extended-shotgun-mag-ii","Extended Shotgun Mag II"],["extended-shotgun-mag-iii","Extended Shotgun Mag III"],["fireworks-box-blueprint","Fireworks Box"],["gas-mine","Gas Mine"],["green-light-stick","Green Light Stick"],["heavy-gun-parts","Heavy Gun Parts"],["hullcracker","Hullcracker"],["il-toro-recipe","Il Toro"],["jolt-mine","Jolt Mine"],["jupiter-i-recipe","Jupiter"],["light-gun-parts","Light Gun Parts"],["lightweight-stock","Lightweight Stock"],["looting-mk-3-safekeeper-blueprint","Looting Mk.3 (Safekeeper)"],["looting-mk-3-survivor","Looting Mk.3 (Survivor)"],["lure-grenade","Lure Grenade"],["medium-gun-parts","Medium Gun Parts"],["muzzle-brake-ii","Muzzle Brake II"],["muzzle-brake-iii","Muzzle Brake III"],["osprey","Osprey"],["padded-stock","Padded Stock"],["powered-descender-blueprint","Powered Descender"],["pulse-mine","Pulse Mine"],["rascal-blueprint","Rascal"],["red-light-stick","Red Light Stick"],["remote-raider-flare","Remote Raider Flare"],["seeker-grenade","Seeker Grenade"],["shotgun-choke-ii","Shotgun Choke II"],["shotgun-choke-iii","Shotgun Choke III"],["shotgun-silencer","Shotgun Silencer"],["showstopper","Showstopper"],["silencer-i","Silencer I"],["silencer-ii","Silencer II"],["smoke-grenade","Smoke Grenade"],["snap-hook","Snap Hook"],["stable-stock-ii","Stable Stock II"],["stable-stock-iii","Stable Stock III"],["surge-coil-blueprint","Surge Coil"],["tactical-mk-3-revival","Tactical Mk.3 (Revival)"],["tactical-mk3-defensive","Tactical Mk.3 (Defensive)"],["tacical-mk3-healing-blueprint","Tactical Mk.3 (Healing)"],["utility-augment-t3-smoke-blueprint","Tactical Mk.3 (Smoke)"],["tagging-grenade","Tagging Grenade"],["tempest-i","Tempest"],["torrent-i-recipe","Torrente"],["trailblazer-grenade","Trailblazer Grenade"],["trigger-nade","Trigger Nade"],["venator","Venator"],["vertical-grip-ii","Vertical Grip II"],["vertical-grip-iii","Vertical Grip III"],["vita-shot","Vita Shot"],["vita-spray","Vita Spray"],["vulcano","Vulcano"],["white-flag-blueprint","White Flag"],["wolfpack","Wolfpack"],["yellow-light-stick-blueprint","Yellow Light Stick"]];
 const KEY_BASE="arc-mesas-v2";
 const SUPA_URL="https://kmwznwopkjsxorgyikec.supabase.co", SUPA_KEY="sb_publishable_AGUwrsh5ia9Qt_gIexwyWg_EiqBPqvG";
 let user=null, shareOn=false, squadRows=[], squadReady=true, askMat="";
 const storageKey=()=>KEY_BASE+(user?":"+user.id:"");
 function loadLocal(){ try{ return JSON.parse(localStorage.getItem(storageKey())||"{}"); }catch(e){ return {}; } }
-let have=loadLocal();
-function save(){ try{ localStorage.setItem(storageKey(),JSON.stringify(have)); }catch(e){} pushRemote(); }
+function loadLocalBp(){ try{ return JSON.parse(localStorage.getItem(storageKey()+":bp")||"{}"); }catch(e){ return {}; } }
+let have=loadLocal(), bp=loadLocalBp();
+function save(){
+  try{ localStorage.setItem(storageKey(),JSON.stringify(have)); localStorage.setItem(storageKey()+":bp",JSON.stringify(bp)); }catch(e){}
+  pushRemote();
+}
 
 const $st=document.getElementById("stations");
 function build(){
@@ -519,7 +557,7 @@ function meMeta(){
 // Guarda el progreso; si la base aún no tiene las columnas del escuadrón, guarda sin ellas.
 async function upsertProgress(){
   const base={user_id:user.id,data:have,updated_at:new Date().toISOString()};
-  let {error}=squadReady?await sb.from("progress").upsert({...base,shared:shareOn,...meMeta()}):await sb.from("progress").upsert(base);
+  let {error}=squadReady?await sb.from("progress").upsert({...base,shared:shareOn,blueprints:bp,...meMeta()}):await sb.from("progress").upsert(base);
   if(error&&squadReady){ squadReady=false; renderSquad(); ({error}=await sb.from("progress").upsert(base)); }
   return error;
 }
@@ -544,19 +582,22 @@ async function onSession(session){
   if((next&&next.id)===(user&&user.id)){ renderAuth(); return; }
   const anon=have;                     // progreso sin cuenta que estaba en pantalla
   user=next;
+  const anonBp=bp;
   if(user){
     const mine=loadLocal();            // caché de esta cuenta en este navegador
-    let {data}=await sb.from("progress").select("data,shared").eq("user_id",user.id).maybeSingle();
+    let {data}=await sb.from("progress").select("data,shared,blueprints").eq("user_id",user.id).maybeSingle();
     if(!data){ squadReady=false; ({data}=await sb.from("progress").select("data").eq("user_id",user.id).maybeSingle()); }
     shareOn=!!(data&&data.shared);
     const remote=(data&&data.data)||{};
     // primera vez que entra: hereda lo que llevaba sin cuenta; después, manda lo guardado en la cuenta
     have=(Object.keys(remote).length||Object.keys(mine).length)?{...mine}:{...anon};
     Object.keys(remote).forEach(k=>{ have[k]=Math.max(have[k]||0,remote[k]||0); });
+    bp={...loadLocalBp(),...((data&&data.blueprints)||{})};
+    if(!Object.keys(bp).length) bp={...anonBp};
   } else {
-    have=loadLocal(); shareOn=false;
+    have=loadLocal(); bp=loadLocalBp(); shareOn=false;
   }
-  renderAuth(); save(); render(); loadSquad();
+  renderAuth(); save(); render(); renderBp(); loadSquad();
 }
 if(sb){
   sb.auth.getSession().then(({data:{session}})=>onSession(session));
@@ -577,7 +618,7 @@ function missingOf(d){
 }
 async function loadSquad(){
   if(!sb||!squadReady) return renderSquad();
-  const {data,error}=await sb.from("progress").select("user_id,display_name,avatar_url,data,updated_at").eq("shared",true).order("updated_at",{ascending:false});
+  const {data,error}=await sb.from("progress").select("user_id,display_name,avatar_url,data,blueprints,updated_at").eq("shared",true).order("updated_at",{ascending:false});
   if(error){ squadReady=false; } else { squadRows=data||[]; }
   renderSquad();
 }
@@ -603,8 +644,9 @@ function renderSquad(){
       const c=missingOf(r.data), pct=c.need?Math.round(100*c.got/c.need):0, me=user&&r.user_id===user.id;
       const items=c.items.slice(0,8).map(([m,n])=>`<span class="sq-it${m===askMat?" hit":""}" title="${nm(m)}"><img src="${icon(m)}" alt="" loading="lazy">${nm(m)} <b>${n}</b></span>`).join("");
       const more=c.items.length>8?`<span class="sq-it">+${c.items.length-8} más</span>`:"";
+      const nbp=Object.keys(r.blueprints||{}).length;
       return `<div class="sq-member"><img class="sq-av" src="${r.avatar_url||""}" alt="" onerror="this.style.visibility='hidden'">
-        <div><div class="sq-n">${r.display_name||"Raider"}${me?" <em>(tú)</em>":""}<small>${c.doneLv}/${c.totLv} niveles</small></div><div class="sq-bar"><i style="width:${pct}%"></i></div></div>
+        <div><div class="sq-n">${r.display_name||"Raider"}${me?" <em>(tú)</em>":""}<small>${c.doneLv}/${c.totLv} niveles · ${nbp}/${BP.length} planos</small></div><div class="sq-bar"><i style="width:${pct}%"></i></div></div>
         <div class="sq-items">${items?items+more:`<span class="sq-empty">¡Todo completo! 🎉</span>`}</div></div>`;
     }).join("");
   }else{
@@ -617,6 +659,37 @@ function renderSquad(){
   if(sw) sw.onchange=async()=>{ shareOn=sw.checked; setSync("saving"); setSync(await upsertProgress()?"error":"saved"); loadSquad(); };
 }
 if(sb) setInterval(loadSquad,120000);
+
+// ---- Planos ----
+const $bpGrid=document.getElementById("bpGrid"), $bpNone=document.getElementById("bpNone"), $bpCount=document.getElementById("bpCount");
+const $planos=document.getElementById("planos");
+let bpQ="", bpOnlyMissing=false;
+const bpName=s=>(BP.find(([k])=>k===s)||[,s])[1];
+function buildBp(){
+  $bpGrid.innerHTML=BP.map(([slug,name])=>
+    `<div class="bp" data-s="${slug}" title="${name}"><span class="tick">✓</span><img src="icons/bp/${slug}.webp" alt="" loading="lazy"><div class="bn">${name}</div></div>`).join("");
+  $bpGrid.querySelectorAll(".bp").forEach(el=>{
+    el.onclick=()=>{ const s=el.dataset.s; if(bp[s]) delete bp[s]; else bp[s]=1; save(); renderBp(); loadSquad(); };
+  });
+}
+function renderBp(){
+  let shown=0;
+  $bpGrid.querySelectorAll(".bp").forEach(el=>{
+    const s=el.dataset.s, mine=!!bp[s];
+    el.classList.toggle("on",mine);
+    const hit=(!bpQ||norm(bpName(s)).includes(norm(bpQ))||norm(s).includes(norm(bpQ)))&&(!bpOnlyMissing||!mine);
+    el.classList.toggle("hide",!hit); if(hit) shown++;
+  });
+  $bpNone.classList.toggle("hide",shown>0);
+  const n=Object.keys(bp).length;
+  $bpCount.textContent=`${n}/${BP.length}`;
+  $bpCount.className="tier"+(n===BP.length?" all":n?" some":"");
+  $planos.classList.toggle("complete",n===BP.length);
+}
+document.getElementById("bpHead").onclick=()=>{ $planos.classList.toggle("open"); updateCollapseLabel(); };
+document.getElementById("bpQ").oninput=e=>{ bpQ=e.target.value.trim(); if(bpQ) $planos.classList.add("open"); renderBp(); };
+document.getElementById("bpMissing").onclick=e=>{ bpOnlyMissing=!bpOnlyMissing; e.target.classList.toggle("on",bpOnlyMissing); renderBp(); };
+buildBp(); renderBp();
 // ---- Eventos del mapa (calendario de MetaForge vía función de Netlify) ----
 const EV_ES={"Matriarch":"Matriarcuda","Harvester":"Cosechadora","Night Raid":"Incursión nocturna","Electromagnetic Storm":"Tormenta electromagnética","Cold Snap":"Ola de frío","Hidden Bunker":"Búnker oculto","Locked Gate":"Puerta bloqueada","Close Scrutiny":"Vigilancia estrecha","Prospecting Probes":"Sondas de prospección","Lush Blooms":"Floración exuberante","Uncovered Caches":"Alijos descubiertos","Husk Graveyard":"Cementerio de cascarones","Launch Tower Loot":"Botín de la torre de lanzamiento","Hurricane":"Huracán","Bird City":"Ciudad de pájaros","Beachcombing":"Rebusca en la playa"};
 const EV_REGION={"europe":"Europa","north-america":"Norteamérica","south-america":"Sudamérica","asia":"Asia","oceania":"Oceanía"};

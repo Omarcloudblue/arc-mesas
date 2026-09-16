@@ -5,7 +5,7 @@
 
 import { createPublicKey, verify } from "node:crypto";
 import { fetchSchedule, embedEvents, embedFocus, REGIONS, COLOR, SITE } from "./lib/events.mjs";
-import { nm, MATERIALS, norm, computeMissing } from "./lib/data.mjs";
+import { nm, MATERIALS, norm, computeMissing, BP, BP_NAME, bpStats } from "./lib/data.mjs";
 
 const SUPA_URL = "https://kmwznwopkjsxorgyikec.supabase.co";
 const SUPA_KEY = "sb_publishable_AGUwrsh5ia9Qt_gIexwyWg_EiqBPqvG";
@@ -30,7 +30,7 @@ function verifySig(req, body) {
 }
 
 async function squad() {
-  const r = await fetch(`${SUPA_URL}/rest/v1/progress?shared=eq.true&select=user_id,display_name,discord_id,avatar_url,data,updated_at&order=updated_at.desc`, {
+  const r = await fetch(`${SUPA_URL}/rest/v1/progress?shared=eq.true&select=user_id,display_name,discord_id,avatar_url,data,blueprints,updated_at&order=updated_at.desc`, {
     headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
   });
   if (!r.ok) throw new Error("supabase " + r.status);
@@ -91,12 +91,62 @@ async function run(i) {
       footer: { text: need.length ? "Cantidades que aún les faltan" : "Mesas del Taller de Kyra" },
     };
   }
+  if (name === "planos") {
+    const members = await squad();
+    if (!members.length) return aviso;
+    const uid = optVal(i, "raider"), plano = optVal(i, "plano");
+
+    if (plano) {
+      const slug = BP.find(([s]) => s === plano) || BP.find(([, n]) => norm(n) === norm(plano));
+      if (!slug) return { color: COLOR.squad, title: "Plano desconocido", description: `No encuentro «${plano}».` };
+      const tiene = members.filter((m) => (m.blueprints || {})[slug[0]]).map((m) => m.display_name || "Raider");
+      const falta = members.filter((m) => !(m.blueprints || {})[slug[0]]).map((m) => m.display_name || "Raider");
+      return {
+        color: tiene.length ? COLOR.live : COLOR.hot,
+        title: slug[1],
+        thumbnail: { url: `${SITE}/icons/bp/${slug[0]}.webp` },
+        fields: [
+          { name: `✅ Lo tienen (${tiene.length})`, value: cut(tiene.join(", ") || "_nadie_") },
+          { name: `❌ Les falta (${falta.length})`, value: cut(falta.join(", ") || "_nadie_") },
+        ],
+        footer: { text: "Mesas del Taller de Kyra · Planos" },
+      };
+    }
+
+    if (uid) {
+      const m = members.find((x) => x.discord_id === uid);
+      const ru = (i.data.resolved && i.data.resolved.users && i.data.resolved.users[uid]) || {};
+      const who = ru.global_name || ru.username || "Ese raider";
+      if (!m) return { color: COLOR.squad, title: who, description: "No está compartiendo su progreso.", footer: { text: "Se activa en la página: panel Escuadrón → Compartir mi progreso" } };
+      const s = bpStats(m.blueprints), pct = Math.round(100 * s.own / s.total);
+      return {
+        color: COLOR.squad, title: `${m.display_name || who} · planos`,
+        thumbnail: m.avatar_url ? { url: m.avatar_url } : undefined,
+        description: `${bar(pct)} **${s.own}/${s.total}** (${pct}%)`,
+        fields: s.missing.length ? [{ name: `Le faltan ${s.missing.length}`, value: cut(s.missing.map(([, n]) => n).join(" · ")) }] : [],
+        footer: { text: s.missing.length ? "Mesas del Taller de Kyra · Planos" : "¡Los tiene todos! 🎉" },
+      };
+    }
+
+    return {
+      color: COLOR.squad, title: "Escuadrón — planos",
+      fields: members.slice(0, 10).map((m) => {
+        const s = bpStats(m.blueprints), pct = Math.round(100 * s.own / s.total);
+        return { name: `${m.display_name || "Raider"} — ${s.own}/${s.total}`, value: `${bar(pct)} ${pct}%` };
+      }),
+      footer: { text: "/planos plano:<nombre> para ver quién tiene uno · /planos raider:@alguien para el detalle" },
+      url: SITE,
+    };
+  }
   return { color: COLOR.arc, description: "Comando no reconocido." };
 }
 
 function autocomplete(i) {
   const focused = ((i.data && i.data.options) || []).find((o) => o.focused) || {};
   const q = norm(focused.value || "");
+  if (focused.name === "plano") {
+    return BP.filter(([s, n]) => !q || norm(n).includes(q) || norm(s).includes(q)).slice(0, 25).map(([s, n]) => ({ name: n, value: s }));
+  }
   return MATERIALS.filter((k) => !q || norm(nm(k)).includes(q) || norm(k).includes(q)).slice(0, 25).map((k) => ({ name: nm(k), value: k }));
 }
 
