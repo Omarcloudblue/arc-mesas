@@ -478,7 +478,7 @@ function render(){
     const ok=[...e.querySelectorAll(".mat-card")].every(x=>(have[x.dataset.key]||0)>=+x.dataset.q); totLv++; if(ok) doneLv++;
     e.classList.toggle("done",ok); e.querySelector(".tag").textContent=ok?"listo":"pendiente";
   });
-  document.querySelectorAll(".station").forEach((st,si)=>{
+  document.querySelectorAll("#stations .station").forEach((st,si)=>{
     const lvls=[...st.querySelectorAll(".lvl")]; let n=0; while(n<lvls.length&&lvls[n].classList.contains("done")) n++;
     const off=S[si][3]||0, t=st.querySelector(".tier");
     t.textContent=ROMAN[Math.min(n+off,ROMAN.length-1)];
