@@ -135,6 +135,16 @@
   .empty{font-size:14px;color:#5c5a66;padding:10px 0}
   .toggle{margin-top:14px;font-size:13px;color:#5c5a66;display:flex;align-items:center;gap:8px;cursor:pointer}
   .toggle input{accent-color:var(--ink)}
+  .tabs{display:flex;gap:6px;padding:14px 28px 0;max-width:1400px;margin:0 auto;flex-wrap:wrap}
+  .tab{background:none;border:1px solid transparent;border-bottom:2px solid transparent;color:var(--dim);padding:9px 16px 10px;cursor:pointer;font:700 12px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;gap:8px;border-radius:8px 8px 0 0}
+  .tab:hover{color:var(--txt)}
+  .tab.on{color:var(--txt);border-bottom-color:var(--warn);background:linear-gradient(180deg,transparent,rgba(255,183,3,.08))}
+  .tab b{font:700 11px/1 var(--display);color:var(--dim);background:var(--row);border-radius:999px;padding:3px 7px}
+  .tab.on b{color:var(--ink);background:var(--warn)}
+  .station.always-open .levels{display:block}
+  .station.always-open .chev{display:none}
+  .station.always-open .st-head{cursor:default}
+  .station.always-open .st-head:hover{background:none}
   .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 28px 0;max-width:1400px;margin:0 auto}
   .filters input[type=search]{flex:1 1 260px;background:var(--bg2);border:1px solid var(--line);color:var(--txt);font:inherit;padding:9px 16px;border-radius:999px;outline:none}
   .filters input[type=search]:focus{border-color:var(--dim)}
@@ -254,6 +264,11 @@
   </div>
 </div>
 
+<nav class="tabs">
+  <button class="tab on" data-tab="mesas">Mesas <b id="tabMesas">0/22</b></button>
+  <button class="tab" data-tab="planos">Planos <b id="tabPlanos">0/83</b></button>
+  <button class="tab" data-tab="escuadron">Escuadrón <b id="tabSquad">0</b></button>
+</nav>
 <div class="filters">
   <input type="search" id="q" placeholder="Buscar material (ej. metal, avispa, circuit)…" aria-label="Buscar">
   <button class="chip" data-cat="all">Todo</button>
@@ -272,8 +287,8 @@
 </div>
 <main>
   <div class="col-st">
-    <section id="stations"></section><div class="nores hide" id="nores">Nada coincide con ese filtro.</div>
-    <section class="station" id="planos">
+    <div id="viewMesas"><section id="stations"></section><div class="nores hide" id="nores">Nada coincide con ese filtro.</div></div>
+    <section class="station always-open hide" id="planos">
       <div class="st-head" id="bpHead">
         <img class="st-art" src="icons/bp/anvil.webp" alt="">
         <div><div class="st-name">Planos</div><div class="st-sub">Marca los que ya tienes desbloqueados</div></div>
@@ -288,6 +303,10 @@
         <div class="bp-grid" id="bpGrid"></div>
         <div class="bp-empty hide" id="bpNone">Ningún plano coincide con esa búsqueda.</div>
       </div>
+    </section>
+    <section class="evp hide" id="squad">
+      <div class="evp-h"><div class="ttl">Escuadrón</div><span class="ev-src" id="sqCount"></span></div>
+      <div id="sqBody"></div>
     </section>
   </div>
   <aside class="col-right">
@@ -313,10 +332,6 @@
       <div id="need"></div>
       <label class="toggle"><input type="checkbox" id="showdone"> Mostrar también lo que ya tienes</label>
     </div>
-    <section class="evp hide" id="squad">
-      <div class="evp-h"><div class="ttl">Escuadrón</div><span class="ev-src" id="sqCount"></span></div>
-      <div id="sqBody"></div>
-    </section>
   </aside>
 </main>
 <footer>
@@ -399,7 +414,7 @@ const RAR={
 const iconTile=m=>`<span class="icon-tile r-${RAR[m]||"common"}"><img src="${icon(m)}" alt="" loading="lazy"></span>`;
 const cellKey=(si,li,m)=>`${si}-${li}-${m}`;
 // Planos: [slug, nombre]. Iconos en icons/bp/<slug>.webp
-const BP=[["angled-grip-ii","Angled Grip II"],["angled-grip-iii-recipe","Angled Grip III"],["anvil","Anvil"],["aphelion-rifle-blueprint","Aphelion Rifle"],["barricade-kit","Barricade Kit"],["bettina-blueprint","Bettina"],["blaze-grenade","Blaze Grenade"],["blue-light-stick","Blue Light Stick"],["bobcat-i-recipe","Bobcat"],["burltetta-recipe","Burletta"],["canto-blueprint","Canto"],["combat-mk-3-flanking","Combat Mk.3 (Flanking)"],["combat-mk3-aggressive-blueprint","Combat Mk.3 (Aggressive)"],["compensator-ii","Compensator II"],["compensator-iii","Compensator III"],["complex-gun-parts","Complex Gun Parts"],["crash-mat-blueprint","Crash Mat"],["deadline","Deadline"],["defibrillator","Defibrillator"],["dolabra-blueprint","Dolabra"],["equalizer","Equalizer"],["explosive-mine-blueprint","Explosive Mine"],["extended-barrel-ii-blueprint","Extended Barrel II"],["extended-barrel-recipe","Extended Barrel III"],["extended-light-mag-ii","Extended Light Mag II"],["extended-light-mag-iii","Extended Light Mag III"],["extended-medium-mag-ii","Extended Medium Mag II"],["extended-medium-mag-iii","Extended Medium Mag III"],["extended-shotgun-mag-ii","Extended Shotgun Mag II"],["extended-shotgun-mag-iii","Extended Shotgun Mag III"],["fireworks-box-blueprint","Fireworks Box"],["gas-mine","Gas Mine"],["green-light-stick","Green Light Stick"],["heavy-gun-parts","Heavy Gun Parts"],["hullcracker","Hullcracker"],["il-toro-recipe","Il Toro"],["jolt-mine","Jolt Mine"],["jupiter-i-recipe","Jupiter"],["light-gun-parts","Light Gun Parts"],["lightweight-stock","Lightweight Stock"],["looting-mk-3-safekeeper-blueprint","Looting Mk.3 (Safekeeper)"],["looting-mk-3-survivor","Looting Mk.3 (Survivor)"],["lure-grenade","Lure Grenade"],["medium-gun-parts","Medium Gun Parts"],["muzzle-brake-ii","Muzzle Brake II"],["muzzle-brake-iii","Muzzle Brake III"],["osprey","Osprey"],["padded-stock","Padded Stock"],["powered-descender-blueprint","Powered Descender"],["pulse-mine","Pulse Mine"],["rascal-blueprint","Rascal"],["red-light-stick","Red Light Stick"],["remote-raider-flare","Remote Raider Flare"],["seeker-grenade","Seeker Grenade"],["shotgun-choke-ii","Shotgun Choke II"],["shotgun-choke-iii","Shotgun Choke III"],["shotgun-silencer","Shotgun Silencer"],["showstopper","Showstopper"],["silencer-i","Silencer I"],["silencer-ii","Silencer II"],["smoke-grenade","Smoke Grenade"],["snap-hook","Snap Hook"],["stable-stock-ii","Stable Stock II"],["stable-stock-iii","Stable Stock III"],["surge-coil-blueprint","Surge Coil"],["tactical-mk-3-revival","Tactical Mk.3 (Revival)"],["tactical-mk3-defensive","Tactical Mk.3 (Defensive)"],["tacical-mk3-healing-blueprint","Tactical Mk.3 (Healing)"],["utility-augment-t3-smoke-blueprint","Tactical Mk.3 (Smoke)"],["tagging-grenade","Tagging Grenade"],["tempest-i","Tempest"],["torrent-i-recipe","Torrente"],["trailblazer-grenade","Trailblazer Grenade"],["trigger-nade","Trigger Nade"],["venator","Venator"],["vertical-grip-ii","Vertical Grip II"],["vertical-grip-iii","Vertical Grip III"],["vita-shot","Vita Shot"],["vita-spray","Vita Spray"],["vulcano","Vulcano"],["white-flag-blueprint","White Flag"],["wolfpack","Wolfpack"],["yellow-light-stick-blueprint","Yellow Light Stick"]];
+const BP=[["angled-grip-ii","Empuñadura inclinada II","Angled Grip II"],["angled-grip-iii-recipe","Empuñadura inclinada III","Angled Grip III"],["anvil","Anvil","Anvil"],["aphelion-rifle-blueprint","Fusil Aphelion","Aphelion Rifle"],["barricade-kit","Kit de barricada","Barricade Kit"],["bettina-blueprint","Bettina","Bettina"],["blaze-grenade","Granada incendiaria","Blaze Grenade"],["blue-light-stick","Barra luminosa azul","Blue Light Stick"],["bobcat-i-recipe","Bobcat","Bobcat"],["burltetta-recipe","Burletta","Burletta"],["canto-blueprint","Canto","Canto"],["combat-mk-3-flanking","Combate Mk.3 (Flanqueo)","Combat Mk.3 (Flanking)"],["combat-mk3-aggressive-blueprint","Combate Mk.3 (Agresivo)","Combat Mk.3 (Aggressive)"],["compensator-ii","Compensador II","Compensator II"],["compensator-iii","Compensador III","Compensator III"],["complex-gun-parts","Piezas de arma complejas","Complex Gun Parts"],["crash-mat-blueprint","Colchoneta","Crash Mat"],["deadline","Deadline","Deadline"],["defibrillator","Desfibrilador","Defibrillator"],["dolabra-blueprint","Dolabra","Dolabra"],["equalizer","Equalizer","Equalizer"],["explosive-mine-blueprint","Mina explosiva","Explosive Mine"],["extended-barrel-ii-blueprint","Cañón extendido II","Extended Barrel II"],["extended-barrel-recipe","Cañón extendido III","Extended Barrel III"],["extended-light-mag-ii","Cargador ligero extendido II","Extended Light Mag II"],["extended-light-mag-iii","Cargador ligero extendido III","Extended Light Mag III"],["extended-medium-mag-ii","Cargador medio extendido II","Extended Medium Mag II"],["extended-medium-mag-iii","Cargador medio extendido III","Extended Medium Mag III"],["extended-shotgun-mag-ii","Cargador de escopeta extendido II","Extended Shotgun Mag II"],["extended-shotgun-mag-iii","Cargador de escopeta extendido III","Extended Shotgun Mag III"],["fireworks-box-blueprint","Caja de fuegos artificiales","Fireworks Box"],["gas-mine","Mina de gas","Gas Mine"],["green-light-stick","Barra luminosa verde","Green Light Stick"],["heavy-gun-parts","Piezas de arma pesadas","Heavy Gun Parts"],["hullcracker","Hullcracker","Hullcracker"],["il-toro-recipe","Il Toro","Il Toro"],["jolt-mine","Mina de descarga","Jolt Mine"],["jupiter-i-recipe","Júpiter","Jupiter"],["light-gun-parts","Piezas de arma ligeras","Light Gun Parts"],["lightweight-stock","Culata ligera","Lightweight Stock"],["looting-mk-3-safekeeper-blueprint","Saqueo Mk.3 (Guardián)","Looting Mk.3 (Safekeeper)"],["looting-mk-3-survivor","Saqueo Mk.3 (Superviviente)","Looting Mk.3 (Survivor)"],["lure-grenade","Granada señuelo","Lure Grenade"],["medium-gun-parts","Piezas de arma medias","Medium Gun Parts"],["muzzle-brake-ii","Freno de boca II","Muzzle Brake II"],["muzzle-brake-iii","Freno de boca III","Muzzle Brake III"],["osprey","Osprey","Osprey"],["padded-stock","Culata acolchada","Padded Stock"],["powered-descender-blueprint","Descensor motorizado","Powered Descender"],["pulse-mine","Mina de pulso","Pulse Mine"],["rascal-blueprint","Rascal","Rascal"],["red-light-stick","Barra luminosa roja","Red Light Stick"],["remote-raider-flare","Bengala de Raider a distancia","Remote Raider Flare"],["seeker-grenade","Granada rastreadora","Seeker Grenade"],["shotgun-choke-ii","Estrangulador de escopeta II","Shotgun Choke II"],["shotgun-choke-iii","Estrangulador de escopeta III","Shotgun Choke III"],["shotgun-silencer","Silenciador de escopeta","Shotgun Silencer"],["showstopper","Showstopper","Showstopper"],["silencer-i","Silenciador I","Silencer I"],["silencer-ii","Silenciador II","Silencer II"],["smoke-grenade","Granada de humo","Smoke Grenade"],["snap-hook","Gancho","Snap Hook"],["stable-stock-ii","Culata estable II","Stable Stock II"],["stable-stock-iii","Culata estable III","Stable Stock III"],["surge-coil-blueprint","Bobina","Surge Coil"],["tactical-mk-3-revival","Táctico Mk.3 (Reanimación)","Tactical Mk.3 (Revival)"],["tactical-mk3-defensive","Táctico Mk.3 (Defensivo)","Tactical Mk.3 (Defensive)"],["tacical-mk3-healing-blueprint","Táctico Mk.3 (Curación)","Tactical Mk.3 (Healing)"],["utility-augment-t3-smoke-blueprint","Táctico Mk.3 (Humo)","Tactical Mk.3 (Smoke)"],["tagging-grenade","Granada de marcado","Tagging Grenade"],["tempest-i","Tempest","Tempest"],["torrent-i-recipe","Torrente","Torrente"],["trailblazer-grenade","Granada pionera","Trailblazer Grenade"],["trigger-nade","Granada de gatillo","Trigger Nade"],["venator","Venator","Venator"],["vertical-grip-ii","Empuñadura vertical II","Vertical Grip II"],["vertical-grip-iii","Empuñadura vertical III","Vertical Grip III"],["vita-shot","Vita Shot","Vita Shot"],["vita-spray","Vita Spray","Vita Spray"],["vulcano","Vulcano","Vulcano"],["white-flag-blueprint","Bandera blanca","White Flag"],["wolfpack","Wolfpack","Wolfpack"],["yellow-light-stick-blueprint","Barra luminosa amarilla","Yellow Light Stick"]];
 const KEY_BASE="arc-mesas-v2";
 const SUPA_URL="https://kmwznwopkjsxorgyikec.supabase.co", SUPA_KEY="sb_publishable_AGUwrsh5ia9Qt_gIexwyWg_EiqBPqvG";
 let user=null, shareOn=false, squadRows=[], squadReady=true, askMat="";
@@ -485,6 +500,7 @@ function render(){
   })));
   $bar.style.width=Math.round(100*haveSum/needSum)+"%";
   $lead.textContent=`${doneLv} de ${totLv} niveles cubiertos · ${needSum-haveSum} unidades por conseguir`;
+  const tm=document.getElementById("tabMesas"); if(tm) tm.textContent=`${doneLv}/${totLv}`;
   $need.innerHTML=Object.keys(CAT).map(k=>{
     const items=Object.entries(groups[k]||{}).filter(([,r])=>$show.checked||r>0).sort((a,b)=>b[1]-a[1]);
     if(!items.length) return "";
@@ -498,7 +514,7 @@ function match(m){ if(!F.q) return true; const h=norm(nm(m)+" "+m+" "+(M[m][1]||
 function visible(m,q,key){ return match(m) && (F.cat==="all"||M[m][0]===F.cat) && (!F.missing||(have[key]||0)<q); }
 function applyFilters(){
   let any=false;
-  document.querySelectorAll(".station").forEach(st=>{
+  document.querySelectorAll("#stations .station").forEach(st=>{
     let stAny=false;
     st.querySelectorAll(".lvl").forEach(l=>{
       let lAny=false;
@@ -511,17 +527,18 @@ function applyFilters(){
   document.getElementById("nores").classList.toggle("hide",any);
   document.querySelectorAll("#need .it").forEach(it=>{ const m=it.dataset.m; it.classList.toggle("hide",!(match(m)&&(F.cat==="all"||M[m][0]===F.cat))); });
   document.querySelectorAll("#need .grp").forEach(g=>g.classList.toggle("hide",![...g.querySelectorAll(".it")].some(i=>!i.classList.contains("hide"))));
+  document.getElementById("nores").classList.toggle("hide",any||typeof tab==="undefined"||tab!=="mesas");
   updateCollapseLabel();
 }
 function updateCollapseLabel(){
-  const anyOpen=[...document.querySelectorAll(".station")].some(s=>s.classList.contains("open"));
+  const anyOpen=[...document.querySelectorAll("#stations .station")].some(s=>s.classList.contains("open"));
   const btn=document.getElementById("collapseAll");
   btn.querySelector("span").textContent=anyOpen?"Colapsar todo":"Expandir todo";
   btn.classList.toggle("flip",!anyOpen);
 }
 document.getElementById("collapseAll").onclick=()=>{
-  const anyOpen=[...document.querySelectorAll(".station")].some(s=>s.classList.contains("open"));
-  document.querySelectorAll(".station").forEach(s=>s.classList.toggle("open",!anyOpen));
+  const anyOpen=[...document.querySelectorAll("#stations .station")].some(s=>s.classList.contains("open"));
+  document.querySelectorAll("#stations .station").forEach(s=>s.classList.toggle("open",!anyOpen));
   updateCollapseLabel();
 };
 document.getElementById("q").oninput=e=>{F.q=e.target.value.trim();applyFilters();};
@@ -623,9 +640,8 @@ async function loadSquad(){
   renderSquad();
 }
 function renderSquad(){
-  if(!sb||(!squadReady&&!user)){ $squad.classList.add("hide"); return; }
-  if(!user&&!squadRows.length){ $squad.classList.add("hide"); return; }
-  $squad.classList.remove("hide");
+  const tsq=document.getElementById("tabSquad"); if(tsq) tsq.textContent=String(squadRows.length);
+  if(!sb) return;
   const mine=user?squadRows.find(r=>r.user_id===user.id):null;
   const list=(mine?[mine]:[]).concat(squadRows.filter(r=>!user||r.user_id!==user.id));
   document.getElementById("sqCount").textContent=list.length?`${list.length} compartiendo`:"";
@@ -665,9 +681,10 @@ const $bpGrid=document.getElementById("bpGrid"), $bpNone=document.getElementById
 const $planos=document.getElementById("planos");
 let bpQ="", bpOnlyMissing=false;
 const bpName=s=>(BP.find(([k])=>k===s)||[,s])[1];
+const bpEn=s=>(BP.find(([k])=>k===s)||[,,s])[2];
 function buildBp(){
-  $bpGrid.innerHTML=BP.map(([slug,name])=>
-    `<div class="bp" data-s="${slug}" title="${name}"><span class="tick">✓</span><img src="icons/bp/${slug}.webp" alt="" loading="lazy"><div class="bn">${name}</div></div>`).join("");
+  $bpGrid.innerHTML=BP.map(([slug,name,en])=>
+    `<div class="bp" data-s="${slug}" title="${name}${en&&en!==name?" · "+en:""}"><span class="tick">✓</span><img src="icons/bp/${slug}.webp" alt="" loading="lazy"><div class="bn">${name}</div></div>`).join("");
   $bpGrid.querySelectorAll(".bp").forEach(el=>{
     el.onclick=()=>{ const s=el.dataset.s; if(bp[s]) delete bp[s]; else bp[s]=1; save(); renderBp(); loadSquad(); };
   });
@@ -677,19 +694,36 @@ function renderBp(){
   $bpGrid.querySelectorAll(".bp").forEach(el=>{
     const s=el.dataset.s, mine=!!bp[s];
     el.classList.toggle("on",mine);
-    const hit=(!bpQ||norm(bpName(s)).includes(norm(bpQ))||norm(s).includes(norm(bpQ)))&&(!bpOnlyMissing||!mine);
+    const hit=(!bpQ||norm(bpName(s)).includes(norm(bpQ))||norm(bpEn(s)).includes(norm(bpQ))||norm(s).includes(norm(bpQ)))&&(!bpOnlyMissing||!mine);
     el.classList.toggle("hide",!hit); if(hit) shown++;
   });
   $bpNone.classList.toggle("hide",shown>0);
   const n=Object.keys(bp).length;
   $bpCount.textContent=`${n}/${BP.length}`;
+  document.getElementById("tabPlanos").textContent=`${n}/${BP.length}`;
   $bpCount.className="tier"+(n===BP.length?" all":n?" some":"");
   $planos.classList.toggle("complete",n===BP.length);
 }
-document.getElementById("bpHead").onclick=()=>{ $planos.classList.toggle("open"); updateCollapseLabel(); };
-document.getElementById("bpQ").oninput=e=>{ bpQ=e.target.value.trim(); if(bpQ) $planos.classList.add("open"); renderBp(); };
+document.getElementById("bpQ").oninput=e=>{ bpQ=e.target.value.trim(); renderBp(); };
 document.getElementById("bpMissing").onclick=e=>{ bpOnlyMissing=!bpOnlyMissing; e.target.classList.toggle("on",bpOnlyMissing); renderBp(); };
 buildBp(); renderBp();
+
+// ---- Pestañas: Mesas · Planos · Escuadrón ----
+let tab=(()=>{ try{ return localStorage.getItem("arc-tab")||"mesas"; }catch(e){ return "mesas"; } })();
+function setTab(t){
+  tab=t; try{ localStorage.setItem("arc-tab",t); }catch(e){}
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  document.getElementById("viewMesas").classList.toggle("hide",t!=="mesas");
+  document.querySelector(".filters").classList.toggle("hide",t!=="mesas");
+  document.querySelector(".list").classList.toggle("hide",t!=="mesas");
+  document.getElementById("collapseAll").classList.toggle("hide",t!=="mesas");
+  $planos.classList.toggle("hide",t!=="planos");
+  $squad.classList.toggle("hide",t!=="escuadron");
+  if(t==="escuadron") loadSquad();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+setTab(tab);
 // ---- Eventos del mapa (calendario de MetaForge vía función de Netlify) ----
 const EV_ES={"Matriarch":"Matriarcuda","Harvester":"Cosechadora","Night Raid":"Incursión nocturna","Electromagnetic Storm":"Tormenta electromagnética","Cold Snap":"Ola de frío","Hidden Bunker":"Búnker oculto","Locked Gate":"Puerta bloqueada","Close Scrutiny":"Vigilancia estrecha","Prospecting Probes":"Sondas de prospección","Lush Blooms":"Floración exuberante","Uncovered Caches":"Alijos descubiertos","Husk Graveyard":"Cementerio de cascarones","Launch Tower Loot":"Botín de la torre de lanzamiento","Hurricane":"Huracán","Bird City":"Ciudad de pájaros","Beachcombing":"Rebusca en la playa"};
 const EV_REGION={"europe":"Europa","north-america":"Norteamérica","south-america":"Sudamérica","asia":"Asia","oceania":"Oceanía"};
