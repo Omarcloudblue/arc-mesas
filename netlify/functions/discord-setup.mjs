@@ -4,8 +4,37 @@
 
 import { COMMANDS, COMMANDS_VERSION, APP_ID_DEFAULT } from "./lib/commands.mjs";
 import { loadState, saveState } from "./lib/state.mjs";
+import { fetchSchedule, splitNow, es, mp, emo, ts, COLOR, REGION_ES } from "./lib/events.mjs";
 
-export default async () => {
+// ?prueba=1 manda al canal un aviso de ejemplo (mismo formato que el real) para verificar el @here.
+async function prueba() {
+  const hook = process.env.DISCORD_WEBHOOK_URL;
+  if (!hook) return { prueba: "falta DISCORD_WEBHOOK_URL" };
+  const region = process.env.EVENTS_REGION || "north-america";
+  const mention = (process.env.DISCORD_MENTION ?? "@here").trim();
+  const evs = await fetchSchedule(region);
+  const { upcoming } = splitNow(evs);
+  const e = upcoming.find((x) => x.name === "Matriarch") || upcoming[0];
+  const r = await fetch(hook, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      content: mention,
+      embeds: [{
+        color: COLOR.hot,
+        title: `${emo(e.name)} PRUEBA · así se verá el aviso de ${es(e.name)}`,
+        description: `**${mp(e.map)}** · ${ts(e.start, "t")} (${ts(e.start, "R")})`,
+        footer: { text: `Servidor ${REGION_ES[region] || region} · mensaje de prueba, puedes borrarlo` },
+      }],
+      allowed_mentions: { parse: ["roles", "everyone"] },
+    }),
+  });
+  return { prueba: r.ok ? "aviso de prueba enviado" : `error ${r.status}: ${(await r.text()).slice(0, 200)}` };
+}
+
+export default async (req) => {
+  if (new URL(req.url).searchParams.get("prueba")) {
+    return new Response(JSON.stringify(await prueba(), null, 2), { headers: { "content-type": "application/json; charset=utf-8" } });
+  }
   const token = process.env.DISCORD_BOT_TOKEN;
   const appId = process.env.DISCORD_APP_ID || APP_ID_DEFAULT;
   const out = {
