@@ -36,8 +36,12 @@ export default async () => {
   const region = process.env.EVENTS_REGION || "north-america";
   const remindList = (process.env.REMIND_EVENTS || "Matriarch").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   const remindMin = Number(process.env.REMIND_MINUTES || 30);
-  const mention = (process.env.DISCORD_MENTION || "").trim();
+  // Por defecto avisa con @here y solo cuando el evento cae en La Presa (Dam).
+  const mention = (process.env.DISCORD_MENTION ?? "@here").trim();
+  const remindMaps = (process.env.REMIND_MAPS ?? "Dam").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const mapOk = (e) => !remindMaps.length || remindMaps.some((m) => e.map.toLowerCase().includes(m) || mp(e.map).toLowerCase().includes(m));
   const hot = (e) => remindList.includes(e.name.toLowerCase());
+  const alertable = (e) => hot(e) && mapOk(e);
 
   let evs;
   try { evs = await fetchSchedule(region); } catch (e) { return new Response(String(e.message || e)); }
@@ -68,7 +72,7 @@ export default async () => {
 
   // 2) Avisos: ventana de 5 min + registro del último aviso para no repetir
   const lo = (remindMin - 5) * 60000, hi = remindMin * 60000;
-  const soon = evs.filter((e) => hot(e) && e.start - now > lo && e.start - now <= hi);
+  const soon = evs.filter((e) => alertable(e) && e.start - now > lo && e.start - now <= hi);
   let sent = 0;
   for (const e of soon) {
     const key = `${e.name}|${e.map}|${e.start}`;
@@ -79,7 +83,7 @@ export default async () => {
         color: COLOR.hot,
         title: `${emo(e.name)} ¡${es(e.name)} en ${remindMin} minutos!`,
         description: `**${mp(e.map)}** · ${ts(e.start, "t")} (${ts(e.start, "R")})`,
-        footer: { text: `Servidor ${REGION_ES[region] || region} · preparen munición pesada` },
+        footer: { text: `Servidor ${REGION_ES[region] || region} · preparen munición pesada y explosivos` },
       }],
       allowed_mentions: { parse: ["roles", "everyone"] },
     });
