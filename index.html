@@ -214,6 +214,44 @@
   .bp .tick{position:absolute;top:5px;right:5px;width:17px;height:17px;border-radius:50%;background:var(--ok);color:var(--ink);font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center}
   .bp.on .tick{display:flex}
   .bp-empty{color:var(--dim);font-size:13px;padding:10px 0}
+  .tb-box{margin-bottom:16px}
+  .tb-h{font:700 10.5px/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:14px 0 8px;display:flex;align-items:center;gap:8px}
+  .tb-h:first-child{margin-top:0}
+  .tb-h i{flex:1;height:1px;background:var(--line)}
+  .deal{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;background:var(--row);border-radius:10px;padding:8px 12px 8px 8px;margin-bottom:7px;border-left:3px solid var(--line)}
+  .deal.give{border-left-color:var(--ok)}
+  .deal.get{border-left-color:var(--warn)}
+  .deal .ic{width:34px;height:34px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center}
+  .deal .ic img{width:24px;height:24px;object-fit:contain}
+  .deal .tx{font-size:13.5px;line-height:1.3}
+  .deal .tx b{font-weight:700}
+  .deal .tx small{display:block;color:var(--dim);font-size:11.5px;margin-top:2px}
+  .deal .who{display:flex;align-items:center;gap:-6px}
+  .deal .who img{width:24px;height:24px;border-radius:50%;border:2px solid var(--bg2);margin-left:-8px;object-fit:cover;background:var(--row)}
+  .deal .who img:first-child{margin-left:0}
+  .deal .qty{font:700 14px/1 var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .deal.give .qty{color:var(--ok)} .deal.get .qty{color:var(--warn)}
+  .tb-form{display:grid;grid-template-columns:auto 1fr 70px auto;gap:8px;align-items:center;margin-bottom:14px}
+  .tb-form input{background:var(--row);border:1px solid var(--line);color:var(--txt);font:inherit;font-size:13.5px;padding:8px 12px;border-radius:999px;outline:none;min-width:0}
+  .tb-form input:focus{border-color:var(--dim)}
+  #tbNote{grid-column:1/-1}
+  .tb-kind{display:flex;background:var(--row);border-radius:999px;padding:3px}
+  .tb-k{border:0;background:none;color:var(--dim);font:700 10.5px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;padding:7px 12px;border-radius:999px;cursor:pointer}
+  .tb-k.on{background:var(--warn);color:var(--ink)}
+  .tb-send{border:0;background:var(--cream);color:var(--ink);font:700 11px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;padding:10px 16px;border-radius:999px;cursor:pointer}
+  .tb-send:hover{background:#fff}
+  .post{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+  .post:first-child{border-top:0}
+  .post .av{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--row);border:1px solid var(--line)}
+  .post .bd{font-size:13.5px;line-height:1.35}
+  .post .bd .tag{font:700 9.5px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;margin-right:6px}
+  .post .bd .tag.busco{background:rgba(255,183,3,.22);color:var(--warn)}
+  .post .bd .tag.ofrezco{background:rgba(123,216,143,.2);color:var(--ok)}
+  .post .bd small{display:block;color:var(--dim);font-size:11.5px;margin-top:3px}
+  .post .del{background:none;border:0;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
+  .post .del:hover{color:#ff6b6b}
+  .tb-empty{color:var(--dim);font-size:13px;padding:6px 0}
+  @media(max-width:600px){.tb-form{grid-template-columns:1fr 70px}.tb-kind{grid-column:1/-1}.tb-send{grid-column:1/-1}}
   .sw{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);cursor:pointer;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
   .sw input{accent-color:var(--ok);width:16px;height:16px;flex:none}
   .ev-empty{color:var(--dim);font-size:13px;padding:4px 0}
@@ -268,6 +306,7 @@
   <button class="tab on" data-tab="mesas">Mesas <b id="tabMesas">0/22</b></button>
   <button class="tab" data-tab="planos">Planos <b id="tabPlanos">0/83</b></button>
   <button class="tab" data-tab="escuadron">Escuadrón <b id="tabSquad">0</b></button>
+  <button class="tab" data-tab="tablon">Intercambio <b id="tabTablon">0</b></button>
 </nav>
 <div class="filters">
   <input type="search" id="q" placeholder="Buscar material (ej. metal, avispa, circuit)…" aria-label="Buscar">
@@ -307,6 +346,27 @@
     <section class="evp hide" id="squad">
       <div class="evp-h"><div class="ttl">Escuadrón</div><span class="ev-src" id="sqCount"></span></div>
       <div id="sqBody"></div>
+    </section>
+    <section class="hide" id="tablon">
+      <div class="evp tb-box">
+        <div class="evp-h"><div class="ttl">Coincidencias</div><span class="ev-src">calculadas con lo que cada uno lleva</span></div>
+        <div id="tbMatch"></div>
+      </div>
+      <div class="evp tb-box">
+        <div class="evp-h"><div class="ttl">Tablón</div><span class="ev-src" id="tbCount"></span></div>
+        <form class="tb-form hide" id="tbForm" autocomplete="off">
+          <div class="tb-kind">
+            <button type="button" class="tb-k on" data-kind="busco">Busco</button>
+            <button type="button" class="tb-k" data-kind="ofrezco">Ofrezco</button>
+          </div>
+          <input list="tbItems" id="tbItem" placeholder="Material, plano o lo que sea…" aria-label="Qué">
+          <datalist id="tbItems"></datalist>
+          <input type="number" id="tbQty" min="1" value="1" aria-label="Cantidad">
+          <input id="tbNote" placeholder="Nota (opcional)" aria-label="Nota">
+          <button type="submit" class="tb-send">Publicar</button>
+        </form>
+        <div id="tbBody"></div>
+      </div>
     </section>
   </div>
   <aside class="col-right">
@@ -673,6 +733,7 @@ function renderSquad(){
   const ask=document.getElementById("sqAsk"); if(ask) ask.onchange=()=>{ askMat=ask.value; renderSquad(); };
   const sw=document.getElementById("sqShare");
   if(sw) sw.onchange=async()=>{ shareOn=sw.checked; setSync("saving"); setSync(await upsertProgress()?"error":"saved"); loadSquad(); };
+  if(typeof renderMatches==="function") renderMatches();
 }
 if(sb) setInterval(loadSquad,120000);
 
@@ -708,7 +769,115 @@ document.getElementById("bpQ").oninput=e=>{ bpQ=e.target.value.trim(); renderBp(
 document.getElementById("bpMissing").onclick=e=>{ bpOnlyMissing=!bpOnlyMissing; e.target.classList.toggle("on",bpOnlyMissing); renderBp(); };
 buildBp(); renderBp();
 
-// ---- Pestañas: Mesas · Planos · Escuadrón ----
+// ---- Intercambio: coincidencias automáticas + tablón de pedidos ----
+const $tablon=document.getElementById("tablon"), $tbMatch=document.getElementById("tbMatch"), $tbBody=document.getElementById("tbBody");
+let posts=[], tbKind="busco", postsReady=true;
+const avatarsOf=l=>l.slice(0,4).map(p=>`<img src="${p.a||""}" alt="" title="${p.n}" onerror="this.style.visibility='hidden'">`).join("");
+const meRow=()=>user?squadRows.find(r=>r.user_id===user.id):null;
+// Por material: quién lo necesita (y cuánto) y quién ya lo completó (puede regalar el sobrante).
+function matsIndex(){
+  const idx={};
+  squadRows.forEach(r=>{
+    const rem=Object.fromEntries(missingOf(r.data).items);
+    const who={n:r.display_name||"Raider",a:r.avatar_url,id:r.user_id};
+    MAT_SORTED.forEach(m=>{
+      const e=idx[m]=idx[m]||{need:[],listo:[]};
+      const q=rem[m]||0;
+      if(q>0) e.need.push({...who,q}); else e.listo.push(who);
+    });
+  });
+  return idx;
+}
+function dealRow(cls,slug,texto,sub,gente,qty,esPlano){
+  const img=esPlano?`icons/bp/${slug}.webp`:icon(slug);
+  return `<div class="deal ${cls}"><span class="ic"><img src="${img}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"></span>
+    <div class="tx">${texto}<small>${sub}</small></div>
+    <div style="display:flex;align-items:center;gap:10px"><span class="who">${avatarsOf(gente)}</span><span class="qty">${qty}</span></div></div>`;
+}
+function renderMatches(){
+  const mine=meRow();
+  if(!squadRows.length){ $tbMatch.innerHTML=`<div class="tb-empty">Cuando tú y tus compañeros activen "Compartir mi progreso" en Escuadrón, aquí aparece solo quién puede ayudar a quién.</div>`; return; }
+  const idx=matsIndex(), yo=mine?mine.user_id:null;
+  const puedoDar=[], mePuedenDar=[], general=[];
+  MAT_SORTED.forEach(m=>{
+    const e=idx[m]; if(!e||!e.need.length) return;
+    const total=e.need.reduce((a,x)=>a+x.q,0);
+    const yoNecesito=e.need.find(x=>x.id===yo), yoListo=e.listo.some(x=>x.id===yo);
+    const otrosNecesitan=e.need.filter(x=>x.id!==yo), otrosListos=e.listo.filter(x=>x.id!==yo);
+    if(yoListo&&otrosNecesitan.length) puedoDar.push({m,gente:otrosNecesitan,q:otrosNecesitan.reduce((a,x)=>a+x.q,0)});
+    else if(yoNecesito&&otrosListos.length) mePuedenDar.push({m,gente:otrosListos,q:yoNecesito.q});
+    general.push({m,gente:e.need,q:total});
+  });
+  puedoDar.sort((a,b)=>b.q-a.q); mePuedenDar.sort((a,b)=>b.q-a.q); general.sort((a,b)=>b.q-a.q);
+  // Planos: quién puede fabricarte lo que no tienes
+  const planos=[];
+  if(mine){
+    const mios=mine.blueprints||{};
+    BP.forEach(([slug,nombre])=>{
+      if(mios[slug]) return;
+      const tienen=squadRows.filter(r=>r.user_id!==yo&&(r.blueprints||{})[slug]).map(r=>({n:r.display_name||"Raider",a:r.avatar_url}));
+      if(tienen.length) planos.push({slug,nombre,gente:tienen});
+    });
+  }
+  let h="";
+  if(puedoDar.length) h+=`<div class="tb-h">Puedes ayudar<i></i></div>`+puedoDar.slice(0,6).map(d=>
+    dealRow("give",d.m,`Ya completaste <b>${nm(d.m)}</b>`,`Lo necesitan: ${d.gente.map(g=>`${g.n} ×${g.q}`).join(" · ")}`,d.gente,`×${d.q}`)).join("");
+  if(mePuedenDar.length) h+=`<div class="tb-h">Te pueden ayudar<i></i></div>`+mePuedenDar.slice(0,6).map(d=>
+    dealRow("get",d.m,`Te faltan <b>${nm(d.m)}</b>`,`Ya lo completaron: ${d.gente.map(g=>g.n).join(" · ")}`,d.gente,`×${d.q}`)).join("");
+  if(planos.length) h+=`<div class="tb-h">Te lo pueden fabricar<i></i></div>`+planos.slice(0,6).map(p=>
+    dealRow("get",p.slug,`No tienes el plano de <b>${p.nombre}</b>`,`Lo tienen: ${p.gente.map(g=>g.n).join(" · ")}`,p.gente,"plano",true)).join("");
+  if(!puedoDar.length&&!mePuedenDar.length&&general.length) h+=`<div class="tb-h">Lo más buscado del escuadrón<i></i></div>`+general.slice(0,8).map(d=>
+    dealRow("",d.m,`<b>${nm(d.m)}</b>`,`${d.gente.map(g=>`${g.n} ×${g.q}`).join(" · ")}`,d.gente,`×${d.q}`)).join("");
+  $tbMatch.innerHTML=h||`<div class="tb-empty">Nadie necesita nada ahora mismo. 🎉</div>`;
+}
+async function loadPosts(){
+  if(!sb||!postsReady) return renderPosts();
+  const {data,error}=await sb.from("posts").select("*").order("created_at",{ascending:false}).limit(40);
+  if(error){ postsReady=false; } else { posts=data||[]; }
+  renderPosts();
+}
+const hace=t=>{ const s=Math.round((Date.now()-new Date(t).getTime())/1000);
+  if(s<60) return "hace un momento"; const m=Math.round(s/60); if(m<60) return `hace ${m} min`;
+  const h=Math.round(m/60); if(h<24) return `hace ${h} h`; return `hace ${Math.round(h/24)} d`; };
+function renderPosts(){
+  const tt=document.getElementById("tabTablon"); if(tt) tt.textContent=String(posts.length);
+  document.getElementById("tbCount").textContent=posts.length?`${posts.length} publicaciones`:"";
+  document.getElementById("tbForm").classList.toggle("hide",!user||!postsReady);
+  if(!postsReady){ $tbBody.innerHTML=`<div class="tb-empty">El tablón aún no está activado en la base de datos.</div>`; return; }
+  if(!posts.length){ $tbBody.innerHTML=`<div class="tb-empty">${user?"Nadie ha publicado todavía. Estrénalo tú.":"Entra con Discord para publicar lo que buscas u ofreces."}</div>`; return; }
+  $tbBody.innerHTML=posts.map(p=>{
+    const mio=user&&p.user_id===user.id;
+    const qty=p.qty>1?` ×${p.qty}`:"";
+    return `<div class="post"><img class="av" src="${p.avatar_url||""}" alt="" onerror="this.style.visibility='hidden'">
+      <div class="bd"><span class="tag ${p.kind}">${p.kind}</span><b>${p.item||""}</b>${qty}
+        <small>${p.display_name||"Raider"} · ${hace(p.created_at)}${p.note?" · "+p.note:""}</small></div>
+      ${mio?`<button class="del" data-id="${p.id}" title="Borrar">✕</button>`:"<span></span>"}</div>`;
+  }).join("");
+  $tbBody.querySelectorAll(".del").forEach(b=>b.onclick=async()=>{
+    await sb.from("posts").delete().eq("id",b.dataset.id); loadPosts();
+  });
+}
+function fillItems(){
+  document.getElementById("tbItems").innerHTML=
+    MAT_SORTED.map(m=>`<option value="${nm(m)}">`).join("")+BP.map(([,n])=>`<option value="${n}">`).join("");
+}
+document.querySelectorAll(".tb-k").forEach(b=>b.onclick=()=>{ tbKind=b.dataset.kind; document.querySelectorAll(".tb-k").forEach(x=>x.classList.toggle("on",x===b)); });
+document.getElementById("tbForm").onsubmit=async e=>{
+  e.preventDefault();
+  const item=document.getElementById("tbItem").value.trim();
+  if(!item||!user) return;
+  const qty=Math.max(1,parseInt(document.getElementById("tbQty").value,10)||1);
+  const note=document.getElementById("tbNote").value.trim();
+  const esPlano=BP.some(([,n])=>norm(n)===norm(item));
+  const esMat=MAT_SORTED.some(m=>norm(nm(m))===norm(item));
+  const {error}=await sb.from("posts").insert({user_id:user.id,...meMeta(),kind:tbKind,item_kind:esPlano?"plano":(esMat?"material":"otro"),item,qty,note:note||null});
+  if(!error){ document.getElementById("tbItem").value=""; document.getElementById("tbQty").value=1; document.getElementById("tbNote").value=""; }
+  loadPosts();
+};
+fillItems();
+if(sb) setInterval(()=>{ if(tab==="tablon") loadPosts(); },60000);
+
+// ---- Pestañas: Mesas · Planos · Escuadrón · Intercambio ----
 let tab=(()=>{ try{ return localStorage.getItem("arc-tab")||"mesas"; }catch(e){ return "mesas"; } })();
 function setTab(t){
   tab=t; try{ localStorage.setItem("arc-tab",t); }catch(e){}
@@ -719,7 +888,9 @@ function setTab(t){
   document.getElementById("collapseAll").classList.toggle("hide",t!=="mesas");
   $planos.classList.toggle("hide",t!=="planos");
   $squad.classList.toggle("hide",t!=="escuadron");
+  $tablon.classList.toggle("hide",t!=="tablon");
   if(t==="escuadron") loadSquad();
+  if(t==="tablon"){ loadSquad(); loadPosts(); }
   window.scrollTo({top:0,behavior:"smooth"});
 }
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));

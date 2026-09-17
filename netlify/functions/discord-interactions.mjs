@@ -91,6 +91,24 @@ async function run(i) {
       footer: { text: need.length ? "Cantidades que aún les faltan" : "Mesas del Taller de Kyra" },
     };
   }
+  if (name === "tablon") {
+    const r = await fetch(`${SUPA_URL}/rest/v1/posts?select=kind,item,qty,note,display_name,created_at&order=created_at.desc&limit=20`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` },
+    });
+    if (!r.ok) return { color: COLOR.squad, title: "Tablón", description: "Todavía no está activado." };
+    const rows = await r.json();
+    const fmt = (p) => `\`${p.qty > 1 ? p.qty + "×" : "—"}\` **${p.item}** · ${p.display_name || "Raider"}${p.note ? ` — _${p.note}_` : ""}`;
+    const buscan = rows.filter((p) => p.kind === "busco"), ofrecen = rows.filter((p) => p.kind === "ofrezco");
+    if (!rows.length) return { color: COLOR.squad, title: "Tablón del escuadrón", description: "Nadie ha publicado nada todavía.", url: SITE, footer: { text: "Se publica en la pestaña Intercambio de la página" } };
+    return {
+      color: COLOR.squad, title: "Tablón del escuadrón", url: SITE,
+      fields: [
+        ...(buscan.length ? [{ name: `🔎 Buscan (${buscan.length})`, value: cut(buscan.slice(0, 8).map(fmt).join("\n")) }] : []),
+        ...(ofrecen.length ? [{ name: `🎁 Ofrecen (${ofrecen.length})`, value: cut(ofrecen.slice(0, 8).map(fmt).join("\n")) }] : []),
+      ],
+      footer: { text: "Publica en la pestaña Intercambio de la página" },
+    };
+  }
   if (name === "planos") {
     const members = await squad();
     if (!members.length) return aviso;
