@@ -1,7 +1,13 @@
 // Estado del bot guardado en Supabase (tabla bot_state). Sin dependencias de npm.
-const SUPA_URL = "https://kmwznwopkjsxorgyikec.supabase.co";
-const SUPA_KEY = "sb_publishable_AGUwrsh5ia9Qt_gIexwyWg_EiqBPqvG";
+export const SUPA_URL = "https://kmwznwopkjsxorgyikec.supabase.co";
+export const SUPA_KEY = "sb_publishable_AGUwrsh5ia9Qt_gIexwyWg_EiqBPqvG";
 const H = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "content-type": "application/json" };
+
+export async function supaGet(path) {
+  const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: H });
+  if (!r.ok) throw new Error("supabase " + r.status);
+  return r.json();
+}
 const KEY = "main";
 
 export async function loadState() {

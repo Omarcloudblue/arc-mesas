@@ -12,9 +12,10 @@
 //   DISCORD_MESSAGE_ID   (opcional)     respaldo si la tabla bot_state no existe
 //   NOTIFY_HOURS         (opcional)     franja en que se avisa, por defecto "19-1" (7 p.m. a 1 a.m.)
 //   NOTIFY_TZ            (opcional)     zona horaria de esa franja, por defecto America/Bogota
+//   POSTS_MENTION        (opcional)     mención para las solicitudes del tablón (vacío = sin ping)
 
 import { fetchSchedule, embedEvents, embedFocus, es, mp, ts, emo, REGION_ES, COLOR } from "./lib/events.mjs";
-import { loadState, saveState } from "./lib/state.mjs";
+import { loadState, saveState, supaGet } from "./lib/state.mjs";
 import { COMMANDS, COMMANDS_VERSION, APP_ID_DEFAULT } from "./lib/commands.mjs";
 
 // Corre cada minuto para que los avisos lleguen puntuales; el mensaje fijo se edita cada 5.
@@ -113,7 +114,32 @@ export default async () => {
     await saveState(state);
   }
 
+  // 3) Solicitudes nuevas del tablón → al canal (máximo 5 por corrida)
+  let tablon = 0;
+  try {
+    const desde = state.lastPostAt || new Date(now - 5 * 60000).toISOString();
+    const nuevos = await supaGet(`posts?select=id,kind,item,qty,note,display_name,avatar_url,created_at&created_at=gt.${encodeURIComponent(desde)}&order=created_at.asc&limit=5`);
+    for (const p of nuevos) {
+      const busca = p.kind === "busco";
+      await post(hook, "POST", {
+        content: (process.env.POSTS_MENTION || "").trim(),
+        embeds: [{
+          color: busca ? COLOR.hot : COLOR.live,
+          author: { name: `${p.display_name || "Raider"} ${busca ? "busca" : "ofrece"}`, icon_url: p.avatar_url || undefined },
+          title: `${busca ? "🔎" : "🎁"} ${p.item}${p.qty > 1 ? ` ×${p.qty}` : ""}`,
+          description: p.note || undefined,
+          footer: { text: "Tablón · kyra-arc-mesas.netlify.app" },
+          timestamp: p.created_at,
+        }],
+        allowed_mentions: { parse: ["roles", "everyone"] },
+      });
+      state.lastPostAt = p.created_at; tablon++;
+    }
+    if (tablon) await saveState(state);
+    else if (!state.lastPostAt) { state.lastPostAt = new Date(now).toISOString(); await saveState(state); }
+  } catch (e) { /* el tablón puede no existir todavía */ }
+
   const cmd = await ensureCommands(state);
   const active = evs.filter((e) => e.start <= now && e.end > now).length;
-  return new Response(`ok · estado ${stateOk ? "sí" : "no"} · msg ${msgId || "-"} · activos ${active} · avisos ${sent}${cmd}${note}`);
+  return new Response(`ok · estado ${stateOk ? "sí" : "no"} · msg ${msgId || "-"} · activos ${active} · avisos ${sent} · tablón ${tablon}${cmd}${note}`);
 };
