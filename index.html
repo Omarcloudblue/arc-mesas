@@ -809,16 +809,16 @@ function renderMatches(){
     general.push({m,gente:e.need,q:total});
   });
   puedoDar.sort((a,b)=>b.q-a.q); mePuedenDar.sort((a,b)=>b.q-a.q); general.sort((a,b)=>b.q-a.q);
-  // Planos: quién puede fabricarte lo que no tienes
-  const planos=[];
-  if(mine){
-    const mios=mine.blueprints||{};
-    BP.forEach(([slug,nombre])=>{
-      if(mios[slug]) return;
-      const tienen=squadRows.filter(r=>r.user_id!==yo&&(r.blueprints||{})[slug]).map(r=>({n:r.display_name||"Raider",a:r.avatar_url}));
-      if(tienen.length) planos.push({slug,nombre,gente:tienen});
-    });
-  }
+  // Planos: quién puede fabricarte lo que no tienes (y, sin sesión, quién puede fabricar qué)
+  const planos=[], planosGen=[];
+  BP.forEach(([slug,nombre])=>{
+    const tienen=squadRows.filter(r=>(r.blueprints||{})[slug]).map(r=>({n:r.display_name||"Raider",a:r.avatar_url,id:r.user_id}));
+    const faltan=squadRows.filter(r=>!(r.blueprints||{})[slug]).map(r=>({n:r.display_name||"Raider",id:r.user_id}));
+    if(!tienen.length||!faltan.length) return;
+    planosGen.push({slug,nombre,tienen,faltan});
+    if(mine&&faltan.some(x=>x.id===yo)) planos.push({slug,nombre,gente:tienen.filter(x=>x.id!==yo)});
+  });
+  planosGen.sort((a,b)=>a.tienen.length-b.tienen.length||b.faltan.length-a.faltan.length);
   let h="";
   if(puedoDar.length) h+=`<div class="tb-h">Puedes ayudar<i></i></div>`+puedoDar.slice(0,6).map(d=>
     dealRow("give",d.m,`Ya completaste <b>${nm(d.m)}</b>`,`Lo necesitan: ${d.gente.map(g=>`${g.n} ×${g.q}`).join(" · ")}`,d.gente,`×${d.q}`)).join("");
@@ -828,6 +828,9 @@ function renderMatches(){
     dealRow("get",p.slug,`No tienes el plano de <b>${p.nombre}</b>`,`Lo tienen: ${p.gente.map(g=>g.n).join(" · ")}`,p.gente,"plano",true)).join("");
   if(!puedoDar.length&&!mePuedenDar.length&&general.length) h+=`<div class="tb-h">Lo más buscado del escuadrón<i></i></div>`+general.slice(0,8).map(d=>
     dealRow("",d.m,`<b>${nm(d.m)}</b>`,`${d.gente.map(g=>`${g.n} ×${g.q}`).join(" · ")}`,d.gente,`×${d.q}`)).join("");
+  if(!general.length) h+=`<div class="tb-h">Materiales<i></i></div><div class="tb-empty">Todas las mesas del escuadrón están completas. 🎉</div>`;
+  if(!planos.length&&planosGen.length) h+=`<div class="tb-h">Quién puede fabricar qué<i></i></div>`+planosGen.slice(0,10).map(p=>
+    dealRow("give",p.slug,`<b>${p.nombre}</b>`,`Lo tiene ${p.tienen.map(g=>g.n).join(" · ")} · le falta a ${p.faltan.map(g=>g.n).join(" · ")}`,p.tienen,`${p.tienen.length}/${squadRows.length}`,true)).join("");
   $tbMatch.innerHTML=h||`<div class="tb-empty">Nadie necesita nada ahora mismo. 🎉</div>`;
 }
 async function loadPosts(){
