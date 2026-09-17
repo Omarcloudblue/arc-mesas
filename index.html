@@ -1068,7 +1068,7 @@ const fmtT=ms=>new Date(ms).toLocaleTimeString([],{hour:"2-digit",minute:"2-digi
 const pad=n=>String(n).padStart(2,"0");
 function fmtCD(ms,clock){ const s=Math.max(0,Math.floor(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; if(clock) return `${pad(h)}:${pad(m)}:${pad(x)}`; return h?`${h}h ${pad(m)}m ${pad(x)}s`:`${m}m ${pad(x)}s`; }
 async function loadEvents(){
-  try{ const r=await fetch(`/.netlify/functions/events?region=${evRegion}`,{cache:"no-store"}); if(!r.ok) throw 0; evData=await r.json(); }
+  try{ const r=await fetch(`/api/events?region=${evRegion}`,{cache:"no-store"}); if(!r.ok) throw 0; evData=await r.json(); }
   catch(e){ if(!evData) evData={events:[],error:true}; }
   renderEvents();
 }
