@@ -10,6 +10,8 @@
 //   REMIND_MINUTES       (opcional)     minutos de anticipación del aviso, por defecto 30
 //   DISCORD_MENTION      (opcional)     p. ej. "@here" o "<@&ID_DEL_ROL>" para el aviso
 //   DISCORD_MESSAGE_ID   (opcional)     respaldo si la tabla bot_state no existe
+//   NOTIFY_HOURS         (opcional)     franja en que se avisa, por defecto "19-1" (7 p.m. a 1 a.m.)
+//   NOTIFY_TZ            (opcional)     zona horaria de esa franja, por defecto America/Bogota
 
 import { fetchSchedule, embedEvents, embedFocus, es, mp, ts, emo, REGION_ES, COLOR } from "./lib/events.mjs";
 import { loadState, saveState } from "./lib/state.mjs";
@@ -42,7 +44,15 @@ export default async () => {
   const remindMaps = (process.env.REMIND_MAPS ?? "Dam").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   const mapOk = (e) => !remindMaps.length || remindMaps.some((m) => e.map.toLowerCase().includes(m) || mp(e.map).toLowerCase().includes(m));
   const hot = (e) => remindList.includes(e.name.toLowerCase());
-  const alertable = (e) => hot(e) && mapOk(e);
+  // Solo de noche: eventos que empiezan entre NOTIFY_HOURS (por defecto 19-1, es decir 7 p.m. a 1 a.m.) en hora de Colombia.
+  const tz = process.env.NOTIFY_TZ || "America/Bogota";
+  const [hFrom, hTo] = (process.env.NOTIFY_HOURS || "19-1").split("-").map((n) => Number(n));
+  const hourIn = (ms) => {
+    try { return Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: tz }).format(ms)) % 24; }
+    catch (err) { return (new Date(ms).getUTCHours() + 19) % 24; }
+  };
+  const nightOk = (e) => { const h = hourIn(e.start); return hFrom <= hTo ? h >= hFrom && h <= hTo : h >= hFrom || h <= hTo; };
+  const alertable = (e) => hot(e) && mapOk(e) && nightOk(e);
 
   let evs;
   try { evs = await fetchSchedule(region); } catch (e) { return new Response(String(e.message || e)); }
