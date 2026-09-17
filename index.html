@@ -406,10 +406,11 @@
           <input list="tbItems" id="bgItem" placeholder="¿Qué te pasó?" aria-label="Qué">
           <input type="number" id="bgQty" min="1" value="1" aria-label="Cantidad">
           <input id="bgNote" placeholder="Nota (opcional)" aria-label="Nota">
-          <label class="bg-file" id="bgFileLabel"><input type="file" id="bgPhoto" accept="image/*" hidden> Adjuntar captura</label>
+          <label class="bg-file" id="bgFileLabel"><input type="file" id="bgPhoto" accept="image/*" hidden> Adjuntar captura (o Ctrl+V)</label>
           <button type="submit" class="tb-send" id="bgSend">Registrar</button>
         </form>
         <div id="bgAviso" class="tb-empty hide"></div>
+        <div id="bgTip" class="tb-empty hide">La persona y la captura se quedan fijas: registra objeto por objeto y luego cambia de persona cuando quieras.</div>
         <div id="bgBody"></div>
       </div>
     </section>
@@ -931,7 +932,7 @@ if(sb) setInterval(()=>{ if(tab==="tablon") loadPosts(); },60000);
 
 // ---- Bodega: lo que el escuadrón te deja guardado, con captura de soporte ----
 const $bodega=document.getElementById("bodega"), $bgBody=document.getElementById("bgBody"), $bgAviso=document.getElementById("bgAviso");
-let holds=[], bgReady=true, bgFile=null;
+let holds=[], bgReady=true, bgFile=null, bgPhotoUrl=null;
 const fecha=t=>new Date(t).toLocaleDateString([], {day:"numeric",month:"short"});
 async function encoger(file,max=1400,q=.82){
   try{
@@ -954,6 +955,7 @@ function renderHolds(){
   const guardados=holds.filter(h=>h.status==="guardado");
   if(tb) tb.textContent=String(guardados.length);
   document.getElementById("bgForm").classList.toggle("hide",!user||!bgReady);
+  document.getElementById("bgTip").classList.toggle("hide",!(user&&bgReady));
   $bgAviso.classList.toggle("hide",!(!user||!bgReady));
   $bgAviso.textContent=!user?"Entra con Discord para llevar el registro de lo que te dejan guardado."
     :(!bgReady?"La bodega aún no está activada en la base de datos.":"");
@@ -986,36 +988,47 @@ function renderHolds(){
   });
 }
 document.getElementById("lightbox").onclick=e=>e.currentTarget.classList.add("hide");
-document.getElementById("bgPhoto").onchange=e=>{
-  bgFile=e.target.files[0]||null;
+function setBgFile(f){
+  bgFile=f||null; bgPhotoUrl=null;
   const l=document.getElementById("bgFileLabel");
   l.classList.toggle("ok",!!bgFile);
-  l.childNodes[l.childNodes.length-1].nodeValue=bgFile?` ${bgFile.name.slice(0,22)}`:" Adjuntar captura";
+  l.childNodes[l.childNodes.length-1].nodeValue=bgFile?` ${(bgFile.name||"captura").slice(0,20)} · clic para quitar`:" Adjuntar captura (o Ctrl+V)";
+}
+document.getElementById("bgPhoto").onchange=e=>setBgFile(e.target.files[0]);
+document.getElementById("bgFileLabel").onclick=e=>{
+  if(bgFile){ e.preventDefault(); document.getElementById("bgPhoto").value=""; setBgFile(null); }
 };
+// Pegar una captura directamente (Ctrl+V) estando en la pestaña Bodega
+document.addEventListener("paste",e=>{
+  if(tab!=="bodega"||!user) return;
+  const f=[...(e.clipboardData&&e.clipboardData.files||[])].find(x=>x.type.startsWith("image/"));
+  if(f){ setBgFile(f); document.getElementById("bgItem").focus(); }
+});
 document.getElementById("bgForm").onsubmit=async e=>{
   e.preventDefault();
   if(!user) return;
   const from=document.getElementById("bgFrom").value.trim(), item=document.getElementById("bgItem").value.trim();
   if(!from||!item) return;
   const btn=document.getElementById("bgSend"); btn.disabled=true; btn.textContent="Guardando…";
-  let photo_url=null;
   try{
-    if(bgFile){
+    // La misma captura sirve para varias líneas: se sube una sola vez.
+    if(bgFile&&!bgPhotoUrl){
       const blob=await encoger(bgFile);
       const path=`${user.id}/${Date.now()}.jpg`;
       const {error:e1}=await sb.storage.from("soportes").upload(path,blob,{contentType:"image/jpeg",upsert:false});
-      if(!e1) photo_url=sb.storage.from("soportes").getPublicUrl(path).data.publicUrl;
+      if(!e1) bgPhotoUrl=sb.storage.from("soportes").getPublicUrl(path).data.publicUrl;
     }
+    const photo_url=bgPhotoUrl;
     const quien=squadRows.find(r=>(r.display_name||"")===from);
     await sb.from("custodia").insert({
       owner_id:user.id, owner_name:meMeta().display_name, from_user_id:quien?quien.user_id:null, from_name:from,
       item, qty:Math.max(1,parseInt(document.getElementById("bgQty").value,10)||1),
       note:document.getElementById("bgNote").value.trim()||null, photo_url
     });
-    ["bgFrom","bgItem","bgNote"].forEach(id=>document.getElementById(id).value="");
+    // Se mantienen "de quién" y la captura para seguir registrando la misma entrega.
+    document.getElementById("bgItem").value="";
     document.getElementById("bgQty").value=1;
-    document.getElementById("bgPhoto").value=""; bgFile=null;
-    const l=document.getElementById("bgFileLabel"); l.classList.remove("ok"); l.childNodes[l.childNodes.length-1].nodeValue=" Adjuntar captura";
+    document.getElementById("bgItem").focus();
   }finally{ btn.disabled=false; btn.textContent="Registrar"; }
   loadHolds();
 };
