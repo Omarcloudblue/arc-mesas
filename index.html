@@ -252,6 +252,33 @@
   .post .del:hover{color:#ff6b6b}
   .tb-empty{color:var(--dim);font-size:13px;padding:6px 0}
   @media(max-width:600px){.tb-form{grid-template-columns:1fr 70px}.tb-kind{grid-column:1/-1}.tb-send{grid-column:1/-1}}
+  .bg-form{display:grid;grid-template-columns:1fr 1fr 70px;gap:8px;align-items:center;margin:14px 0}
+  .bg-form input[type=text],.bg-form input[type=number],.bg-form input:not([type]){background:var(--row);border:1px solid var(--line);color:var(--txt);font:inherit;font-size:13.5px;padding:9px 13px;border-radius:999px;outline:none;min-width:0}
+  .bg-form input:focus{border-color:var(--dim)}
+  #bgNote{grid-column:1/-1}
+  .bg-file{grid-column:1/2;display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--row);border:1px dashed var(--line);color:var(--dim);border-radius:999px;padding:9px 13px;cursor:pointer;font-size:12.5px}
+  .bg-file:hover{color:var(--txt);border-color:var(--dim)}
+  .bg-file.ok{border-style:solid;border-color:rgba(123,216,143,.6);color:var(--ok)}
+  #bgSend{grid-column:2/-1}
+  .bg-sum{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px}
+  .bg-chip{display:inline-flex;align-items:center;gap:7px;background:var(--row);border-radius:999px;padding:5px 12px 5px 5px;font-size:12.5px}
+  .bg-chip img{width:22px;height:22px;border-radius:50%;object-fit:cover;background:var(--bg)}
+  .bg-chip b{font-variant-numeric:tabular-nums}
+  .hold{display:grid;grid-template-columns:54px 1fr auto;gap:11px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .hold:first-child{border-top:0}
+  .hold .shot{width:54px;height:54px;border-radius:9px;object-fit:cover;background:var(--row);border:1px solid var(--line);cursor:zoom-in}
+  .hold .shot.none{display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:18px;cursor:default}
+  .hold .bd{font-size:14px;line-height:1.35}
+  .hold .bd small{display:block;color:var(--dim);font-size:11.5px;margin-top:3px}
+  .hold .bd .estado{font:700 9.5px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(255,183,3,.2);color:var(--warn);margin-left:7px}
+  .hold.devuelto{opacity:.55}
+  .hold.devuelto .estado{background:rgba(123,216,143,.2);color:var(--ok)}
+  .hold .acts{display:flex;gap:6px}
+  .hold .acts button{background:var(--row);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:6px 11px;font-size:11.5px;cursor:pointer}
+  .hold .acts button:hover{color:var(--txt);border-color:var(--dim)}
+  .lightbox{position:fixed;inset:0;background:rgba(6,8,16,.88);display:flex;align-items:center;justify-content:center;padding:24px;z-index:60;cursor:zoom-out}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  @media(max-width:600px){.bg-form{grid-template-columns:1fr 70px}.bg-file,#bgSend{grid-column:1/-1}}
   .sw{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);cursor:pointer;margin-top:12px;padding-top:11px;border-top:1px solid var(--line)}
   .sw input{accent-color:var(--ok);width:16px;height:16px;flex:none}
   .ev-empty{color:var(--dim);font-size:13px;padding:4px 0}
@@ -307,6 +334,7 @@
   <button class="tab" data-tab="planos">Planos <b id="tabPlanos">0/83</b></button>
   <button class="tab" data-tab="escuadron">Escuadrón <b id="tabSquad">0</b></button>
   <button class="tab" data-tab="tablon">Intercambio <b id="tabTablon">0</b></button>
+  <button class="tab" data-tab="bodega">Bodega <b id="tabBodega">0</b></button>
 </nav>
 <div class="filters">
   <input type="search" id="q" placeholder="Buscar material (ej. metal, avispa, circuit)…" aria-label="Buscar">
@@ -368,6 +396,24 @@
         <div id="tbBody"></div>
       </div>
     </section>
+    <section class="hide" id="bodega">
+      <div class="evp tb-box">
+        <div class="evp-h"><div class="ttl">Bodega</div><span class="ev-src">lo que te dejaron guardado</span></div>
+        <div id="bgResumen"></div>
+        <form class="bg-form hide" id="bgForm" autocomplete="off">
+          <input list="bgWho" id="bgFrom" placeholder="¿Quién te lo pasó?" aria-label="Quién">
+          <datalist id="bgWho"></datalist>
+          <input list="tbItems" id="bgItem" placeholder="¿Qué te pasó?" aria-label="Qué">
+          <input type="number" id="bgQty" min="1" value="1" aria-label="Cantidad">
+          <input id="bgNote" placeholder="Nota (opcional)" aria-label="Nota">
+          <label class="bg-file" id="bgFileLabel"><input type="file" id="bgPhoto" accept="image/*" hidden> Adjuntar captura</label>
+          <button type="submit" class="tb-send" id="bgSend">Registrar</button>
+        </form>
+        <div id="bgAviso" class="tb-empty hide"></div>
+        <div id="bgBody"></div>
+      </div>
+    </section>
+    <div class="lightbox hide" id="lightbox"><img src="" alt=""></div>
   </div>
   <aside class="col-right">
     <section class="evp hide" id="events">
@@ -734,6 +780,7 @@ function renderSquad(){
   const sw=document.getElementById("sqShare");
   if(sw) sw.onchange=async()=>{ shareOn=sw.checked; setSync("saving"); setSync(await upsertProgress()?"error":"saved"); loadSquad(); };
   if(typeof renderMatches==="function") renderMatches();
+  if(typeof fillItems==="function") fillItems();
 }
 if(sb) setInterval(loadSquad,120000);
 
@@ -863,6 +910,8 @@ function renderPosts(){
 function fillItems(){
   document.getElementById("tbItems").innerHTML=
     MAT_SORTED.map(m=>`<option value="${nm(m)}">`).join("")+BP.map(([,n])=>`<option value="${n}">`).join("");
+  const who=document.getElementById("bgWho");
+  if(who) who.innerHTML=squadRows.map(r=>`<option value="${r.display_name||"Raider"}">`).join("");
 }
 document.querySelectorAll(".tb-k").forEach(b=>b.onclick=()=>{ tbKind=b.dataset.kind; document.querySelectorAll(".tb-k").forEach(x=>x.classList.toggle("on",x===b)); });
 document.getElementById("tbForm").onsubmit=async e=>{
@@ -880,7 +929,98 @@ document.getElementById("tbForm").onsubmit=async e=>{
 fillItems();
 if(sb) setInterval(()=>{ if(tab==="tablon") loadPosts(); },60000);
 
-// ---- Pestañas: Mesas · Planos · Escuadrón · Intercambio ----
+// ---- Bodega: lo que el escuadrón te deja guardado, con captura de soporte ----
+const $bodega=document.getElementById("bodega"), $bgBody=document.getElementById("bgBody"), $bgAviso=document.getElementById("bgAviso");
+let holds=[], bgReady=true, bgFile=null;
+const fecha=t=>new Date(t).toLocaleDateString([], {day:"numeric",month:"short"});
+async function encoger(file,max=1400,q=.82){
+  try{
+    const img=await createImageBitmap(file);
+    const s=Math.min(1,max/Math.max(img.width,img.height));
+    if(s===1&&file.size<700000) return file;
+    const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",q));
+  }catch(e){ return file; }
+}
+async function loadHolds(){
+  if(!sb||!user||!bgReady) return renderHolds();
+  const {data,error}=await sb.from("custodia").select("*").order("created_at",{ascending:false}).limit(100);
+  if(error){ bgReady=false; } else { holds=data||[]; }
+  renderHolds();
+}
+function renderHolds(){
+  const tb=document.getElementById("tabBodega");
+  const guardados=holds.filter(h=>h.status==="guardado");
+  if(tb) tb.textContent=String(guardados.length);
+  document.getElementById("bgForm").classList.toggle("hide",!user||!bgReady);
+  $bgAviso.classList.toggle("hide",!(!user||!bgReady));
+  $bgAviso.textContent=!user?"Entra con Discord para llevar el registro de lo que te dejan guardado."
+    :(!bgReady?"La bodega aún no está activada en la base de datos.":"");
+  // resumen por persona
+  const porPersona={};
+  guardados.forEach(h=>{ porPersona[h.from_name]=(porPersona[h.from_name]||0)+(h.qty||1); });
+  const chips=Object.entries(porPersona).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("bgResumen").innerHTML=chips.length
+    ?`<div class="bg-sum">${chips.map(([n,q])=>`<span class="bg-chip"><img src="${(squadRows.find(r=>(r.display_name||"")===n)||{}).avatar_url||""}" alt="" onerror="this.style.visibility='hidden'">${n} <b>${q}</b></span>`).join("")}</div>`
+    :"";
+  if(!user||!bgReady){ $bgBody.innerHTML=""; return; }
+  if(!holds.length){ $bgBody.innerHTML=`<div class="tb-empty">Todavía no has registrado nada. Usa el formulario de arriba cuando alguien te pase objetos.</div>`; return; }
+  $bgBody.innerHTML=holds.map(h=>{
+    const dev=h.status==="devuelto";
+    const foto=h.photo_url?`<img class="shot" src="${h.photo_url}" alt="soporte" data-full="${h.photo_url}">`:`<div class="shot none">📷</div>`;
+    return `<div class="hold${dev?" devuelto":""}">${foto}
+      <div class="bd"><b>${h.item}</b>${h.qty>1?` ×${h.qty}`:""}<span class="estado">${dev?"devuelto":"guardado"}</span>
+        <small>de ${h.from_name} · ${fecha(h.created_at)}${h.note?" · "+h.note:""}</small></div>
+      <div class="acts"><button data-t="${dev?"volver":"devolver"}" data-id="${h.id}">${dev?"Reabrir":"Devolver"}</button><button data-t="del" data-id="${h.id}">✕</button></div></div>`;
+  }).join("");
+  $bgBody.querySelectorAll(".shot[data-full]").forEach(img=>img.onclick=()=>{
+    const lb=document.getElementById("lightbox"); lb.querySelector("img").src=img.dataset.full; lb.classList.remove("hide");
+  });
+  $bgBody.querySelectorAll(".acts button").forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.id;
+    if(b.dataset.t==="del"){ if(!confirm("¿Borrar este registro?")) return; await sb.from("custodia").delete().eq("id",id); }
+    else if(b.dataset.t==="devolver") await sb.from("custodia").update({status:"devuelto",returned_at:new Date().toISOString()}).eq("id",id);
+    else await sb.from("custodia").update({status:"guardado",returned_at:null}).eq("id",id);
+    loadHolds();
+  });
+}
+document.getElementById("lightbox").onclick=e=>e.currentTarget.classList.add("hide");
+document.getElementById("bgPhoto").onchange=e=>{
+  bgFile=e.target.files[0]||null;
+  const l=document.getElementById("bgFileLabel");
+  l.classList.toggle("ok",!!bgFile);
+  l.childNodes[l.childNodes.length-1].nodeValue=bgFile?` ${bgFile.name.slice(0,22)}`:" Adjuntar captura";
+};
+document.getElementById("bgForm").onsubmit=async e=>{
+  e.preventDefault();
+  if(!user) return;
+  const from=document.getElementById("bgFrom").value.trim(), item=document.getElementById("bgItem").value.trim();
+  if(!from||!item) return;
+  const btn=document.getElementById("bgSend"); btn.disabled=true; btn.textContent="Guardando…";
+  let photo_url=null;
+  try{
+    if(bgFile){
+      const blob=await encoger(bgFile);
+      const path=`${user.id}/${Date.now()}.jpg`;
+      const {error:e1}=await sb.storage.from("soportes").upload(path,blob,{contentType:"image/jpeg",upsert:false});
+      if(!e1) photo_url=sb.storage.from("soportes").getPublicUrl(path).data.publicUrl;
+    }
+    const quien=squadRows.find(r=>(r.display_name||"")===from);
+    await sb.from("custodia").insert({
+      owner_id:user.id, owner_name:meMeta().display_name, from_user_id:quien?quien.user_id:null, from_name:from,
+      item, qty:Math.max(1,parseInt(document.getElementById("bgQty").value,10)||1),
+      note:document.getElementById("bgNote").value.trim()||null, photo_url
+    });
+    ["bgFrom","bgItem","bgNote"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("bgQty").value=1;
+    document.getElementById("bgPhoto").value=""; bgFile=null;
+    const l=document.getElementById("bgFileLabel"); l.classList.remove("ok"); l.childNodes[l.childNodes.length-1].nodeValue=" Adjuntar captura";
+  }finally{ btn.disabled=false; btn.textContent="Registrar"; }
+  loadHolds();
+};
+
+// ---- Pestañas: Mesas · Planos · Escuadrón · Intercambio · Bodega ----
 let tab=(()=>{ try{ return localStorage.getItem("arc-tab")||"mesas"; }catch(e){ return "mesas"; } })();
 function setTab(t){
   tab=t; try{ localStorage.setItem("arc-tab",t); }catch(e){}
@@ -892,8 +1032,10 @@ function setTab(t){
   $planos.classList.toggle("hide",t!=="planos");
   $squad.classList.toggle("hide",t!=="escuadron");
   $tablon.classList.toggle("hide",t!=="tablon");
+  $bodega.classList.toggle("hide",t!=="bodega");
   if(t==="escuadron") loadSquad();
   if(t==="tablon"){ loadSquad(); loadPosts(); }
+  if(t==="bodega"){ loadSquad(); loadHolds(); }
   window.scrollTo({top:0,behavior:"smooth"});
 }
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
