@@ -6,6 +6,12 @@
     "directory": "./public",
     "binding": "ASSETS"
   },
+  // Solo datos públicos. Lo secreto (webhook, token, public key) va como "Secret"
+  // en el panel de Cloudflare: los secretos sobreviven a cada despliegue; las
+  // variables normales del panel se borran en el siguiente "wrangler deploy".
+  "vars": {
+    "SITE_URL": "https://arc-mesas.omarmarmolejo0826.workers.dev"
+  },
   "triggers": {
     "crons": ["* * * * *"]
   },
