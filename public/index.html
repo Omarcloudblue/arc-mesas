@@ -722,6 +722,8 @@ async function onSession(session){
     have=loadLocal(); bp=loadLocalBp(); shareOn=false;
   }
   renderAuth(); save(); render(); renderBp(); loadSquad();
+  // Las pestañas que dependen de la sesión se refrescan al reconocer el login
+  loadPosts(); loadHolds();
 }
 if(sb){
   sb.auth.getSession().then(({data:{session}})=>onSession(session));
