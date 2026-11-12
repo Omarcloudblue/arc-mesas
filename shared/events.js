@@ -10,16 +10,18 @@ export const EV_ES = {
   "Locked Gate": "Puerta bloqueada", "Close Scrutiny": "Vigilancia estrecha", "Prospecting Probes": "Sondas de prospección",
   "Lush Blooms": "Floración exuberante", "Uncovered Caches": "Alijos descubiertos", "Husk Graveyard": "Cementerio de cascarones",
   "Launch Tower Loot": "Botín de la torre de lanzamiento", "Hurricane": "Huracán", "Bird City": "Ciudad de pájaros", "Beachcombing": "Rebusca en la playa",
+  "ARC Frigate": "Fragata ARC", "Redirection": "Redirección",
 };
 export const EV_EMOJI = {
   "Matriarch": "🔥", "Harvester": "🏭", "Night Raid": "🌙", "Electromagnetic Storm": "⚡", "Cold Snap": "❄️",
   "Hidden Bunker": "🚪", "Locked Gate": "🔒", "Close Scrutiny": "👁️", "Prospecting Probes": "🛰️", "Lush Blooms": "🌿",
   "Uncovered Caches": "📦", "Husk Graveyard": "💀", "Launch Tower Loot": "🚀", "Hurricane": "🌀", "Bird City": "🐦", "Beachcombing": "🏖️",
+  "ARC Frigate": "🛸", "Redirection": "🔀",
 };
 export const MAP_ES = {
   "Dam": "Campos de batalla de la presa", "Dam Battlegrounds": "Campos de batalla de la presa", "Spaceport": "Puerto espacial",
   "The Spaceport": "Puerto espacial", "Buried City": "Ciudad enterrada", "Blue Gate": "Puerta azul", "The Blue Gate": "Puerta azul",
-  "Stella Montis": "Stella Montis", "Riven Tides": "Mareas divididas",
+  "Stella Montis": "Stella Montis", "Riven Tides": "Mareas divididas", "Pendola Pass": "Paso Pendola",
 };
 export const REGION_ES = { "europe": "Europa", "north-america": "Norteamérica", "south-america": "Sudamérica", "asia": "Asia", "oceania": "Oceanía" };
 export const REGIONS = Object.keys(REGION_ES);
@@ -105,4 +107,26 @@ export function embedFocus(evs, region, target = "Matriarch", now = Date.now()) 
     footer: { text: "Datos de MetaForge · horas en tu zona" },
     timestamp: new Date(now).toISOString(),
   };
+}
+
+// Caché corta en memoria (por isolate) para que el autocompletado responda rápido sin pegarle a MetaForge cada vez.
+const _cache = new Map();
+export async function fetchScheduleCached(region, ttl = 60_000) {
+  const c = _cache.get(region);
+  if (c && Date.now() - c.at < ttl) return c.evs;
+  const evs = await fetchSchedule(region);
+  _cache.set(region, { at: Date.now(), evs });
+  return evs;
+}
+
+// Opciones del desplegable de /eventos: lo que trae el calendario ahora mismo (primero) más los conocidos,
+// así los eventos nuevos aparecen solos aunque no tengan traducción todavía.
+export function eventChoices(evs, q = "") {
+  const seen = new Set(), out = [];
+  const add = (n) => { if (n && !seen.has(n)) { seen.add(n); out.push(n); } };
+  for (const e of evs || []) add(e.name);
+  for (const n of Object.keys(EV_ES)) add(n);
+  const k = q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const hit = (n) => !k || n.toLowerCase().includes(k) || es(n).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(k);
+  return out.filter(hit).slice(0, 25).map((n) => ({ name: es(n), value: n }));
 }

@@ -1,7 +1,7 @@
 // Comandos slash de Discord (endpoint de interacciones). Cloudflare Pages Function.
 // En el portal de Discord → General Information → Interactions Endpoint URL:
 //   https://<tu-sitio>.pages.dev/api/discord
-import { fetchSchedule, embedEvents, embedFocus, REGIONS, COLOR, site } from "../../shared/events.js";
+import { fetchSchedule, fetchScheduleCached, eventChoices, embedEvents, embedFocus, REGIONS, COLOR, site } from "../../shared/events.js";
 import { nm, MATERIALS, norm, computeMissing, BP, bpStats } from "../../shared/data.js";
 import { SUPA_URL, SUPA_KEY } from "../../shared/state.js";
 
@@ -39,7 +39,7 @@ export async function onRequest({ request, env }) {
   if (!(await verify(request, body, env.DISCORD_PUBLIC_KEY))) return new Response("bad signature", { status: 401 });
   const i = JSON.parse(body);
   if (i.type === 1) return json({ type: 1 });
-  if (i.type === 4) return json({ type: 8, data: { choices: autocomplete(i) } });
+  if (i.type === 4) return json({ type: 8, data: { choices: await autocomplete(i, env) } });
   if (i.type === 2) {
     let embed;
     try { embed = await run(i, env); }
@@ -161,9 +161,15 @@ async function run(i, env) {
   return { color: COLOR.arc, description: "Comando no reconocido." };
 }
 
-function autocomplete(i) {
+async function autocomplete(i, env) {
   const focused = ((i.data && i.data.options) || []).find((o) => o.focused) || {};
   const q = norm(focused.value || "");
+  if (focused.name === "evento") {
+    const r = optVal(i, "region"), reg = REGIONS.includes(r) ? r : (env.EVENTS_REGION || "north-america");
+    let evs = [];
+    try { evs = await fetchScheduleCached(reg); } catch (e) { /* sin calendario: solo los conocidos */ }
+    return eventChoices(evs, String(focused.value || ""));
+  }
   if (focused.name === "plano") {
     return BP.filter(([s, n]) => !q || norm(n).includes(q) || norm(s).includes(q)).slice(0, 25).map(([s, n]) => ({ name: n, value: s }));
   }

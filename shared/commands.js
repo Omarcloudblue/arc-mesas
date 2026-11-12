@@ -1,8 +1,7 @@
 // Definición de los comandos slash. Subir COMMANDS_VERSION cuando cambien para que se vuelvan a registrar.
-import { EV_ES } from "./events.js";
 
 export const APP_ID_DEFAULT = "1549282552160985129";
-export const COMMANDS_VERSION = 5;
+export const COMMANDS_VERSION = 6;
 
 const regionOption = {
   type: 3, name: "region", description: "Servidor (por defecto Norteamérica)", required: false,
@@ -15,10 +14,10 @@ const regionOption = {
   ],
 };
 
-// Lista fija (no autocomplete): al elegir la opción, Discord muestra el desplegable de una vez.
+// Autocompletado: la lista se arma en vivo con el calendario (ver eventChoices), así los eventos nuevos salen solos.
 const eventoOption = {
   type: 3, name: "evento", description: "Solo este evento (vacío = todos)", required: false,
-  choices: Object.entries(EV_ES).map(([en, es]) => ({ name: es, value: en })),
+  autocomplete: true,
 };
 
 export const COMMANDS = [
