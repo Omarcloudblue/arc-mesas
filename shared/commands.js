@@ -1,6 +1,8 @@
 // Definición de los comandos slash. Subir COMMANDS_VERSION cuando cambien para que se vuelvan a registrar.
+import { EV_ES } from "./events.js";
+
 export const APP_ID_DEFAULT = "1549282552160985129";
-export const COMMANDS_VERSION = 4;
+export const COMMANDS_VERSION = 5;
 
 const regionOption = {
   type: 3, name: "region", description: "Servidor (por defecto Norteamérica)", required: false,
@@ -13,8 +15,14 @@ const regionOption = {
   ],
 };
 
+// Lista fija (no autocomplete): al elegir la opción, Discord muestra el desplegable de una vez.
+const eventoOption = {
+  type: 3, name: "evento", description: "Solo este evento (vacío = todos)", required: false,
+  choices: Object.entries(EV_ES).map(([en, es]) => ({ name: es, value: en })),
+};
+
 export const COMMANDS = [
-  { name: "eventos", description: "Eventos del mapa activos y próximos", options: [regionOption] },
+  { name: "eventos", description: "Eventos del mapa activos y próximos", options: [eventoOption, regionOption] },
   { name: "matriarcuda", description: "¿Cuándo abre la Matriarcuda?", options: [regionOption] },
   { name: "falta", description: "Qué le falta a alguien del escuadrón (o a todos)", options: [
     { type: 6, name: "raider", description: "Miembro del escuadrón", required: false },

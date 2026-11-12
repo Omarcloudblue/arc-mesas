@@ -63,7 +63,10 @@ async function run(i, env) {
   };
 
   const name = i.data.name;
-  if (name === "eventos") { const reg = region(); return embedEvents(await fetchSchedule(reg), reg, Date.now(), { groups: 3, site: SITE }); }
+  if (name === "eventos") {
+    const reg = region(), evs = await fetchSchedule(reg), evento = optVal(i, "evento");
+    return evento ? embedFocus(evs, reg, evento) : embedEvents(evs, reg, Date.now(), { groups: 3, site: SITE });
+  }
   if (name === "matriarcuda") { const reg = region(); return embedFocus(await fetchSchedule(reg), reg, "Matriarch"); }
 
   if (name === "tablon") {
