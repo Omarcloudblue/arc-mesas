@@ -1,5 +1,10 @@
+# La web vive ahora en Cloudflare (ver wrangler.jsonc). Netlify solo redirige la dirección vieja
+# para que los marcadores de kyra-arc-mesas.netlify.app sigan funcionando.
 [build]
   publish = "."
 
-[functions]
-  directory = "netlify/functions"
+[[redirects]]
+  from = "/*"
+  to = "https://arc-mesas.omarmarmolejo0826.workers.dev/:splat"
+  status = 301
+  force = true
